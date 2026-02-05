@@ -176,7 +176,7 @@ class EntsoeSensor(CoordinatorEntity, RestoreSensor):
             # The Id used for addressing the entity in the ui, recorder history etc.
             self.entity_id = f"{DOMAIN}.{slugify(name)}_{slugify(description.name)}"
             # unique id in .storage file for ui configuration.
-            self._attr_unique_id = f"entsoe.{slugify(name)}_{description.key}"
+            self._attr_unique_id = f"entsoe.{name}_{description.key}"
             self._attr_name = f"{description.name} ({name})"
         else:
             self.entity_id = f"{DOMAIN}.{slugify(description.name)}"
