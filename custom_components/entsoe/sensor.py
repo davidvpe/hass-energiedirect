@@ -253,25 +253,18 @@ class EntsoeSensor(CoordinatorEntity, RestoreSensor):
                 f"Unable to update entity '{self.entity_id}': No valid data for today available."
             )
             self.last_update_success = False
-
-        try:
-            if (
-                self.description.key == "avg_price"
-                and self._attr_native_value is not None
-                and self.coordinator.data is not None
-            ):
-                self._attr_extra_state_attributes = {
-                    "prices_today": self.coordinator.get_prices_today(),
-                    "prices_tomorrow": self.coordinator.get_prices_tomorrow(),
-                    "prices": self.coordinator.get_prices(),
-                }
-                _LOGGER.debug(
-                    f"attributes updated: {self._attr_extra_state_attributes}"
-                )
-        except Exception as exc:
-            _LOGGER.warning(
-                f"Unable to update attributes of the average entity, error: {exc}, data: {self.coordinator.data}"
-            )
+ 
+    @property
+    def extra_state_attributes(self):
+        if self.description.key != "avg_price":
+            return None
+        if self.native_value is None or self.coordinator.data is None:
+            return None
+        return {
+            "prices_today": self.coordinator.get_prices_today(),
+            "prices_tomorrow": self.coordinator.get_prices_tomorrow(),
+            "prices": self.coordinator.get_prices(),
+        }
 
     @property
     def available(self) -> bool:
