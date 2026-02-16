@@ -7,6 +7,8 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Dict, Union
 
+import asyncio
+
 import aiohttp
 import pytz
 from aiohttp import ClientError
@@ -41,12 +43,15 @@ class EntsoeClient:
         }
         params.update(base_params)
 
+        timeout = aiohttp.ClientTimeout(total=10, connect=5)
+        last_error = None
         for url in API_URLS:
             _LOGGER.debug(f"Performing request to {url} with params {params}")
             async with aiohttp.ClientSession() as session:
                 try:
-                    response = await session.get(url=url, params=params, raise_for_status=True)
-                    return await response.text()
+                    async with aiohttp.ClientSession(timeout=timeout) as session:
+                      response = await session.get(url=url, params=params, raise_for_status=True)
+                      return await response.text()
                 except aiohttp.ClientResponseError as e:
                     if e.status == 401:
                         raise  # Don't retry on auth failures
@@ -56,7 +61,7 @@ class EntsoeClient:
                     _LOGGER.info(e)
                     continue
 
-        raise EntsoeException("All ENTSO-e API endpoints failed to respond with status 200.")
+        raise EntsoeException(f"All ENTSO-e API endpoints failed: {last_error}")
 
     def _remove_namespace(self, tree):
         """Remove namespaces in the passed XML tree for easier tag searching."""
