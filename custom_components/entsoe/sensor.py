@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from typing import Any
 
 from homeassistant.components.sensor import (
-    DOMAIN,
     RestoreSensor,
     SensorDeviceClass,
     SensorEntityDescription,
@@ -208,6 +207,19 @@ class EntsoeSensor(CoordinatorEntity, RestoreSensor):
         self._unsub_update = None
 
         super().__init__(coordinator)
+
+    async def async_added_to_hass(self) -> None:
+        """Restore last known state on startup."""
+        await super().async_added_to_hass()
+        if (last_sensor_data := await self.async_get_last_sensor_data()) is not None:
+            self._attr_native_value = last_sensor_data.native_value
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Cancel scheduled updates when entity is removed."""
+        if self._unsub_update:
+            self._unsub_update()
+            self._unsub_update = None
+        await super().async_will_remove_from_hass()
 
     async def async_update(self) -> None:
         """Get the latest data and updates the states."""
