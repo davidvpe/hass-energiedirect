@@ -1,0 +1,66 @@
+from __future__ import annotations
+
+import logging
+from datetime import datetime
+from typing import Dict
+
+import aiohttp
+import pytz
+from aiohttp import ClientError
+
+_LOGGER = logging.getLogger(__name__)
+
+API_URL = "https://www.energiedirect.nl/api/public/dynamicpricing/dynamic-prices/v1"
+AMSTERDAM_TZ = pytz.timezone("Europe/Amsterdam")
+
+
+class EnergieDirectException(Exception):
+    pass
+
+
+class EnergieDirectClient:
+
+    async def fetch_prices(self) -> Dict[str, Dict[datetime, float]]:
+        """
+        Fetch dynamic prices from Energiedirect API.
+
+        Returns a dict with two keys: 'electricity' and 'gas',
+        each mapping datetime -> totalAmount (incl. VAT).
+        Datetimes are timezone-aware (Europe/Amsterdam).
+        """
+        timeout = aiohttp.ClientTimeout(total=10, connect=5)
+        headers = {
+            "accept": "application/json, text/plain, */*",
+            "content-type": "application/json",
+        }
+
+        try:
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(API_URL, headers=headers, raise_for_status=True) as response:
+                    data = await response.json()
+        except aiohttp.ClientResponseError as exc:
+            raise EnergieDirectException(f"HTTP error fetching Energiedirect prices: {exc}") from exc
+        except ClientError as exc:
+            raise EnergieDirectException(f"Connection error fetching Energiedirect prices: {exc}") from exc
+
+        return self._parse_response(data)
+
+    def _parse_response(self, data: dict) -> Dict[str, Dict[datetime, float]]:
+        electricity: Dict[datetime, float] = {}
+        gas: Dict[datetime, float] = {}
+
+        for day_entry in data.get("prices", []):
+            for energy_type, target in (("electricity", electricity), ("gas", gas)):
+                energy_data = day_entry.get(energy_type)
+                if not energy_data:
+                    continue
+                for tariff in energy_data.get("tariffs", []):
+                    start_str = tariff.get("startDateTime")
+                    amount = tariff.get("totalAmount")
+                    if start_str is None or amount is None:
+                        continue
+                    dt = datetime.strptime(start_str, "%Y-%m-%dT%H:%M:%S")
+                    dt_aware = AMSTERDAM_TZ.localize(dt)
+                    target[dt_aware] = amount
+
+        return {"electricity": electricity, "gas": gas}

@@ -1,139 +1,109 @@
-# Home Assistant ENTSO-e Transparency Platform Energy Prices [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/donate/?hosted_button_id=J6LK5FLATEUNC)
-Custom component for Home Assistant to fetch energy prices of all European countries from the ENTSO-e Transparency Platform (https://transparency.entsoe.eu/).
-Day ahead energy prices are added as a sensor and can be used in automations to switch equipment. A 24 Hour forecast of the energy prices is in the sensors attributes and can be shown in a graph:
+# Home Assistant Energiedirect Dynamic Prices
 
-<p align="center">
-    <img src="https://user-images.githubusercontent.com/31140879/195382579-c87b3285-c599-4e30-867e-1acf9feffabe.png" width=40% height=40%>
-</p>
+Custom component for Home Assistant to fetch dynamic electricity and gas prices from [Energiedirect](https://www.energiedirect.nl/dynamische-tarieven).
 
-### API Access
-You need an ENTSO-e Restful API key for this integration. To request this API key, register on the [Transparency Platform](https://transparency.entsoe.eu/) and send an email to transparency@entsoe.eu with “Restful API access” in the subject line. Indicate the
-email address you entered during registration in the email body.
+Prices are updated hourly and can be used in automations to switch equipment based on cheap/expensive energy windows. The 24-hour price forecast is available as sensor attributes and can be visualized in a graph.
 
-### Sensors
-The integration adds the following sensors:
-- Average Day-Ahead Electricity Price Today (This integration carries attributes with all prices)
-- Highest Day-Ahead Electricity Price Today
-- Lowest Day-Ahead Electricity Price Today
-- Current Day-Ahead Electricity Price
-- Current Percentage Relative To Highest Electricity Price Of The Day
-- Next Hour Day-Ahead Electricity Price
-- Time Of Highest Energy Price Today
-- Time Of Lowest Energy Price Today
-  
-------
+### No API Key Required
+
+This integration uses the public Energiedirect pricing API. No registration or API key is needed.
+
+### Data Source
+
+Prices are fetched from:
+```
+https://www.energiedirect.nl/api/public/dynamicpricing/dynamic-prices/v1
+```
+
+The API returns data for yesterday, today, and tomorrow (when available). Prices are in EUR/kWh (electricity) or EUR/m³ (gas) including 21% BTW.
+
+---
+
+## Sensors
+
+Each configured integration instance adds the following sensors (for electricity or gas):
+
+- **Current market price** — price for the current hour
+- **Next hour market price** — price for the next hour
+- **Average price** — average over the configured calculation window (carries `prices_today`, `prices_tomorrow`, and `prices` as attributes)
+- **Highest price** — maximum over the configured window
+- **Lowest price** — minimum over the configured window
+- **Current % of highest price** — percentage of current price relative to the maximum
+- **Current % of price range** — percentage of current price within the min/max spread
+- **Time of highest price** — timestamp of the most expensive hour
+- **Time of lowest price** — timestamp of the cheapest hour
+
+---
+
 ## Installation
 
-### HACS
+### HACS (recommended)
 
-Search for "ENTSO-e" when adding HACS integrations and add "ENTSO-e Transparency Platform". 
-
-Or use this link to go directly there: [![Or use this link.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=JaccoR&repository=hass-entso-e&category=integration) 
-
-Restart Home Assistant and add the integration through Settings. 
+1. In HACS, go to **Integrations → ⋮ → Custom repositories**
+2. Add `https://github.com/davidvpe/hass-energiedirect` with category **Integration**
+3. Install "Energiedirect Dynamic Prices" from HACS
+4. Restart Home Assistant
 
 ### Manual
-Download this repository and place the contents of `custom_components` in your own `custom_components` map of your Home Assistant installation. Restart Home Assistant and add the integration through your settings. 
 
-------
+Copy the `custom_components/energiedirect` folder into your Home Assistant `custom_components` directory and restart Home Assistant.
+
+---
+
 ## Configuration
 
-The sensors can be added using the integration page.
+Go to **Settings → Devices & Services → Add Integration** and search for "Energiedirect Dynamic Prices".
 
-#### Add integration
+### Setup options
 
-1. Go to Settings => Devices and Services
-2. Click the button "+ Add integration". 
-2. Search for "entso
-3. Click on the Entso-e to start te configuration flow.
+| Field | Description |
+|---|---|
+| **Name** | Optional label to distinguish multiple instances |
+| **Energy type** | Electricity (kWh) or Gas (m³) |
+| **Advanced options** | Enable to configure VAT, price modifier template, and calculation mode |
 
- In the config flow you can add your API-key and country and the sensors will automatically be added to your system. There is an optional field for a cost modifyer template and resulting currency.
+### Advanced options
 
-### Cost Modifyer Template
+| Field | Description |
+|---|---|
+| **Additional VAT** | Extra VAT multiplier on top of the already-included 21% BTW (default: 0) |
+| **Price Modifier Template** | Jinja2 template to transform `current_price`, e.g. `{{current_price + 0.05}}` |
+| **Currency** | Currency symbol for sensor units (default: EUR) |
+| **Energy scale** | `kWh` or `MWh` for electricity sensors (default: kWh) |
+| **Calculation mode** | Window used for min/max/avg calculations (see below) |
 
-In the optional field `Price Modifyer Template` a template to modify the price to add additional costs (such as fixed costs per kWh and VAT) and currency conversion (based on a currency sensor) can be specified. When left empty, no additional costs are added.
-In this template `now()` always refers start of the hour of that price and `current_price` refers to the price itself. This way day ahead price can be modified to correct for extra costs.
+### Calculation modes
 
-An example template is given below. You can find and share other templates [here](https://github.com/JaccoR/hass-entso-e/discussions/categories/price-modifyer-templates).
-```
-{% set s = {
-    "extra_cost": 0.5352,
-    "winter_night": 0.265,
-    "winter_day": 0.465,
-    "summer_day": 0.284,
-    "summer_night": 0.246,
-    "VAT": 0.21
-}
-%}
-{% if now().month >= 5 and now().month <11 %}
-    {% if now().hour >=6 and now().hour <23 %}
-        {{(current_price + s.summer_day+s.extra_cost) * s.VAT | float}}
-    {% else %}
-        {{(current_price + s.summer_night + s.extra_cost) * s.VAT | float}}
-    {% endif %}
-{% else %}
-    {% if now().hour >=6 and now().hour <23 %}
-        {{(current_price + s.winter_day + s.extra_cost) * s.VAT | float}}
-    {%else%}
-        {{(current_price + s.winter_night + s.extra_cost) * s.VAT | float}}
-    {% endif %}
-{% endif %}
-```
-### Calculation method
-This changes the calculated (min,max,avg values) entities behaviour to one of:
+| Mode | Description |
+|---|---|
+| **publish** | Today's data when available, otherwise yesterday+today (48h window) |
+| **rotation** | Always the 24 hours of the current calendar day |
+| **sliding** | Only future prices from the current hour onward |
 
-- Sliding
-The min/max/etc entities will get updated every hour with only upcoming data.
-This means that the min price returned at 13:00 will be the lowest price in the future (as available from that point in time).
-Regardless of past hours that might have had a lower price (this is most useful if you want to be able to schedule loads as soon and cheap as possible)
+---
 
-- Default (on publish)
-The min/max/etc entities will get updated once new data becomes available.
-This means that the min price will update once the next days pricing becomes available (usually between 12:00 and 15:00)
-It also means that until the next days pricing becomes available the latest 48h of available data will be used to calculate a min price
+## Price Modifier Template
 
-- Rotation
-The min/max/etc entities will get updated at midnight.
-This means that the min price returned at 23:59 will  be based on the day x price while at 00:00 the day x+1 price will be the only one used in the calculations)
-day x in this case is a random date like 2022-10-10 and day x+1 2022-10-11
-
-
-### ApexChart Graph
-Prices can be shown using the [ApexChart Graph Card](https://github.com/RomRider/apexcharts-card) like in the example above. The Lovelace code for this graph is given below:
+The `current_price` variable contains the raw price from the API (incl. 21% BTW). Use the template to add fixed costs or apply custom markup:
 
 ```
-type: custom:apexcharts-card
-graph_span: 24h
-span:
-  start: day
-now:
-  show: true
-  label: Now
-header:
-  show: true
-  title: Electriciteitsprijzen Vandaag (€/kwh)
-yaxis:
-  - decimals: 2
-series:
-  # This is the entity ID with no name configured.
-  # When a name is configured it will be sensor.<name>_average_electricity_price.
-  - entity: sensor.average_electricity_price
-    stroke_width: 2
-    float_precision: 3
-    type: column
-    opacity: 1
-    color: ''
-    data_generator: |
-      return entity.attributes.prices.map((entry) => { 
-      return [new Date(entry.time), entry.price];
-      });
-
+{{current_price + 0.03}}
 ```
 
+---
 
-------
+## Multiple Instances
 
-#### Updates
+You can add the integration multiple times with different names to track both electricity and gas prices simultaneously.
 
-The integration is in an early state and receives a lot of updates. If you already setup this integration and encounter an error after updating, please try redoing the above installation steps. 
+---
 
+## Disclaimer
+
+This project is not affiliated with, endorsed by, or in any way associated with Energiedirect or its parent company. The use of the Energiedirect name is solely for descriptive purposes. This integration uses a publicly accessible API endpoint; use it at your own risk.
+
+---
+
+## Credits
+
+This integration is based on [hass-entso-e](https://github.com/JaccoR/hass-entso-e) by [@JaccoR](https://github.com/JaccoR), licensed under Apache 2.0. The coordinator architecture, sensor structure, and calculation modes are derived from that work. The data source has been replaced with the public Energiedirect dynamic pricing API.

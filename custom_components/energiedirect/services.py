@@ -1,4 +1,4 @@
-"""The Entso-e services."""
+"""The Energiedirect services."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from homeassistant.helpers import selector
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
-from .coordinator import EntsoeCoordinator
+from .coordinator import EnergieDirectCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -70,7 +70,7 @@ def __serialize_prices(prices) -> ServiceResponse:
     }
 
 
-def __get_coordinator(hass: HomeAssistant, call: ServiceCall) -> EntsoeCoordinator:
+def __get_coordinator(hass: HomeAssistant, call: ServiceCall) -> EnergieDirectCoordinator:
     """Get the coordinator from the entry."""
     entry_id: str = call.data[ATTR_CONFIG_ENTRY]
     entry: ConfigEntry | None = hass.config_entries.async_get_entry(entry_id)
@@ -92,7 +92,7 @@ def __get_coordinator(hass: HomeAssistant, call: ServiceCall) -> EntsoeCoordinat
             },
         )
 
-    coordinator: EntsoeCoordinator = hass.data[DOMAIN][entry_id]
+    coordinator: EnergieDirectCoordinator = hass.data[DOMAIN][entry_id]
     return coordinator
 
 
@@ -116,7 +116,7 @@ async def __get_prices(
 
 @callback
 def async_setup_services(hass: HomeAssistant) -> None:
-    """Set up Entso-e services."""
+    """Set up Energiedirect services."""
 
     hass.services.async_register(
         DOMAIN,

@@ -4,14 +4,14 @@ get_energy_prices:
       required: true
       selector:
         config_entry:
-          integration: entsoe
+          integration: energiedirect
     start:
       required: false
-      example: "2023-01-01 00:00:00"
+      example: "2026-01-01 00:00:00"
       selector:
         datetime:
     end:
       required: false
-      example: "2023-01-01 00:00:00"
+      example: "2026-01-01 00:00:00"
       selector:
         datetime:

@@ -1,4 +1,4 @@
-"""Config flow for Forecast.Solar integration."""
+"""Config flow for Energiedirect Dynamic Prices integration."""
 
 from __future__ import annotations
 
@@ -20,42 +20,37 @@ from homeassistant.helpers.selector import (
 from homeassistant.helpers.template import Template
 
 from .const import (
-    AREA_INFO,
     CALCULATION_MODE,
     COMPONENT_TITLE,
     CONF_ADVANCED_OPTIONS,
-    CONF_API_KEY,
-    CONF_AREA,
     CONF_CALCULATION_MODE,
     CONF_CURRENCY,
     CONF_ENERGY_SCALE,
+    CONF_ENERGY_TYPE,
     CONF_ENTITY_NAME,
     CONF_MODIFYER,
     CONF_VAT_VALUE,
     DEFAULT_CURRENCY,
     DEFAULT_ENERGY_SCALE,
+    DEFAULT_ENERGY_TYPE,
     DEFAULT_MODIFYER,
     DOMAIN,
     ENERGY_SCALES,
+    ENERGY_TYPES,
     UNIQUE_ID,
-    CONF_PERIOD,
-    PERIOD_OPTIONS,
-    DEFAULT_PERIOD,
 )
 
 
-class EntsoeFlowHandler(ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Entsoe."""
+class EnergieDirectFlowHandler(ConfigFlow, domain=DOMAIN):
+    """Handle a config flow for Energiedirect Dynamic Prices."""
 
     def __init__(self):
-        """Initialize ENTSO-e ConfigFlow."""
-        self.area = None
+        """Initialize ConfigFlow."""
+        self.energy_type = None
         self.advanced_options = None
-        self.api_key = None
         self.modifyer = None
         self.currency = None
         self.energy_scale = None
-        self.period = None
         self.name = ""
 
     VERSION = 1
@@ -64,9 +59,9 @@ class EntsoeFlowHandler(ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(
         config_entry: ConfigEntry,
-    ) -> EntsoeOptionFlowHandler:
+    ) -> EnergieDirectOptionFlowHandler:
         """Get the options flow for this handler."""
-        return EntsoeOptionFlowHandler()
+        return EnergieDirectOptionFlowHandler()
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -76,19 +71,15 @@ class EntsoeFlowHandler(ConfigFlow, domain=DOMAIN):
         already_configured = False
 
         if user_input is not None:
-            self.area = user_input[CONF_AREA]
+            self.energy_type = user_input[CONF_ENERGY_TYPE]
             self.advanced_options = user_input[CONF_ADVANCED_OPTIONS]
-            self.api_key = user_input[CONF_API_KEY]
-            self.period = user_input[CONF_PERIOD]
-            self.name = user_input[CONF_ENTITY_NAME]
+            self.name = user_input.get(CONF_ENTITY_NAME, "")
 
-            if user_input[CONF_ENTITY_NAME] not in (None, ""):
-                self.name = user_input[CONF_ENTITY_NAME]
             NAMED_UNIQUE_ID = self.name + UNIQUE_ID
             try:
                 await self.async_set_unique_id(NAMED_UNIQUE_ID)
                 self._abort_if_unique_id_configured()
-            except Exception as e:
+            except Exception:
                 errors["base"] = "already_configured"
                 already_configured = True
 
@@ -105,15 +96,13 @@ class EntsoeFlowHandler(ConfigFlow, domain=DOMAIN):
                     title=self.name or COMPONENT_TITLE,
                     data={},
                     options={
-                        CONF_API_KEY: user_input[CONF_API_KEY],
-                        CONF_AREA: user_input[CONF_AREA],
-                        CONF_PERIOD: user_input[CONF_PERIOD],
+                        CONF_ENERGY_TYPE: user_input[CONF_ENERGY_TYPE],
                         CONF_MODIFYER: user_input[CONF_MODIFYER],
                         CONF_CURRENCY: user_input[CONF_CURRENCY],
                         CONF_ENERGY_SCALE: user_input[CONF_ENERGY_SCALE],
                         CONF_ADVANCED_OPTIONS: user_input[CONF_ADVANCED_OPTIONS],
                         CONF_VAT_VALUE: user_input[CONF_VAT_VALUE],
-                        CONF_ENTITY_NAME: user_input[CONF_ENTITY_NAME],
+                        CONF_ENTITY_NAME: user_input.get(CONF_ENTITY_NAME, ""),
                         CONF_CALCULATION_MODE: user_input[CONF_CALCULATION_MODE],
                     },
                 )
@@ -126,17 +115,13 @@ class EntsoeFlowHandler(ConfigFlow, domain=DOMAIN):
                     vol.Optional(CONF_ENTITY_NAME, default=""): vol.All(
                         vol.Coerce(str)
                     ),
-                    vol.Required(CONF_API_KEY): vol.All(vol.Coerce(str)),
-                    vol.Required(CONF_AREA): SelectSelector(
+                    vol.Required(CONF_ENERGY_TYPE, default=DEFAULT_ENERGY_TYPE): SelectSelector(
                         SelectSelectorConfig(
                             options=[
-                                SelectOptionDict(value=country, label=info["name"])
-                                for country, info in AREA_INFO.items()
+                                SelectOptionDict(value=key, label=label)
+                                for key, label in ENERGY_TYPES.items()
                             ]
                         ),
-                    ),
-                    vol.Required(CONF_PERIOD): SelectSelector(
-                        SelectSelectorConfig(options=PERIOD_OPTIONS),
                     ),
                     vol.Optional(CONF_ADVANCED_OPTIONS, default=False): bool,
                 },
@@ -149,32 +134,25 @@ class EntsoeFlowHandler(ConfigFlow, domain=DOMAIN):
         already_configured = False
 
         if user_input is not None:
-            user_input[CONF_AREA] = self.area
-            user_input[CONF_API_KEY] = self.api_key
+            user_input[CONF_ENERGY_TYPE] = self.energy_type
             user_input[CONF_ENTITY_NAME] = self.name
 
-            if user_input[CONF_ENTITY_NAME] not in (None, ""):
-                self.name = user_input[CONF_ENTITY_NAME]
             NAMED_UNIQUE_ID = self.name + UNIQUE_ID
             try:
                 await self.async_set_unique_id(NAMED_UNIQUE_ID)
                 self._abort_if_unique_id_configured()
-            except Exception as e:
+            except Exception:
                 errors["base"] = "already_configured"
                 already_configured = True
 
-            template_ok = False
             if user_input[CONF_MODIFYER] in (None, ""):
                 user_input[CONF_MODIFYER] = DEFAULT_MODIFYER
             else:
-                # Lets try to remove the most common mistakes, this will still fail if the template
-                # was writte in notepad or something like that..
                 user_input[CONF_MODIFYER] = re.sub(
                     r"\s{2,}", "", user_input[CONF_MODIFYER]
                 )
             if user_input[CONF_CURRENCY] in (None, ""):
                 user_input[CONF_CURRENCY] = DEFAULT_CURRENCY
-
             if user_input[CONF_ENERGY_SCALE] in (None, ""):
                 user_input[CONF_ENERGY_SCALE] = DEFAULT_ENERGY_SCALE
 
@@ -187,17 +165,13 @@ class EntsoeFlowHandler(ConfigFlow, domain=DOMAIN):
                             title=self.name or COMPONENT_TITLE,
                             data={},
                             options={
-                                CONF_API_KEY: user_input[CONF_API_KEY],
-                                CONF_AREA: user_input[CONF_AREA],
-                                CONF_PERIOD: self.period,
+                                CONF_ENERGY_TYPE: user_input[CONF_ENERGY_TYPE],
                                 CONF_MODIFYER: user_input[CONF_MODIFYER],
                                 CONF_CURRENCY: user_input[CONF_CURRENCY],
                                 CONF_ENERGY_SCALE: user_input[CONF_ENERGY_SCALE],
                                 CONF_VAT_VALUE: user_input[CONF_VAT_VALUE],
                                 CONF_ENTITY_NAME: user_input[CONF_ENTITY_NAME],
-                                CONF_CALCULATION_MODE: user_input[
-                                    CONF_CALCULATION_MODE
-                                ],
+                                CONF_CALCULATION_MODE: user_input[CONF_CALCULATION_MODE],
                             },
                         )
                     errors["base"] = "missing_current_price"
@@ -209,9 +183,9 @@ class EntsoeFlowHandler(ConfigFlow, domain=DOMAIN):
             errors=errors,
             data_schema=vol.Schema(
                 {
-                    vol.Optional(
-                        CONF_VAT_VALUE, default=AREA_INFO[self.area]["VAT"]
-                    ): vol.All(vol.Coerce(float, "must be a number")),
+                    vol.Optional(CONF_VAT_VALUE, default=0): vol.All(
+                        vol.Coerce(float, "must be a number")
+                    ),
                     vol.Optional(CONF_MODIFYER, default=""): TemplateSelector(
                         TemplateSelectorConfig()
                     ),
@@ -238,24 +212,22 @@ class EntsoeFlowHandler(ConfigFlow, domain=DOMAIN):
 
     async def _valid_template(self, user_template):
         try:
-            ut = Template(user_template, self.hass).async_render(
-                current_price=0
-            )
-            float(ut)  # Verify template produces a numeric value
+            ut = Template(user_template, self.hass).async_render(current_price=0)
+            float(ut)
             return True
-        except Exception as e:
+        except Exception:
             pass
         return False
 
 
-class EntsoeOptionFlowHandler(OptionsFlow):
+class EnergieDirectOptionFlowHandler(OptionsFlow):
     """Handle options."""
 
     logger = logging.getLogger(__name__)
 
     def __init__(self) -> None:
         """Initialize options flow."""
-        self.area = None
+        pass
 
     @property
     def config_entry(self):
@@ -269,18 +241,14 @@ class EntsoeOptionFlowHandler(OptionsFlow):
 
         if user_input is not None:
             user_input[CONF_ENTITY_NAME] = self.config_entry.options[CONF_ENTITY_NAME]
-            template_ok = False
             if user_input[CONF_MODIFYER] in (None, ""):
                 user_input[CONF_MODIFYER] = DEFAULT_MODIFYER
             else:
-                # Lets try to remove the most common mistakes, this will still fail if the template
-                # was written in notepad or something like that..
                 user_input[CONF_MODIFYER] = re.sub(
                     r"\s{2,}", "", user_input[CONF_MODIFYER]
                 )
             if user_input[CONF_CURRENCY] in (None, ""):
                 user_input[CONF_CURRENCY] = DEFAULT_CURRENCY
-
             if user_input[CONF_ENERGY_SCALE] in (None, ""):
                 user_input[CONF_ENERGY_SCALE] = DEFAULT_ENERGY_SCALE
 
@@ -303,47 +271,35 @@ class EntsoeOptionFlowHandler(OptionsFlow):
             data_schema=vol.Schema(
                 {
                     vol.Required(
-                        CONF_API_KEY, default=self.config_entry.options[CONF_API_KEY]
-                    ): vol.All(vol.Coerce(str)),
-                    vol.Required(
-                        CONF_AREA, default=self.config_entry.options[CONF_AREA]
+                        CONF_ENERGY_TYPE,
+                        default=self.config_entry.options.get(CONF_ENERGY_TYPE, DEFAULT_ENERGY_TYPE),
                     ): SelectSelector(
                         SelectSelectorConfig(
                             options=[
-                                SelectOptionDict(value=country, label=info["name"])
-                                for country, info in AREA_INFO.items()
+                                SelectOptionDict(value=key, label=label)
+                                for key, label in ENERGY_TYPES.items()
                             ]
                         ),
                     ),
                     vol.Optional(
                         CONF_VAT_VALUE,
-                        default=self.config_entry.options[CONF_VAT_VALUE],
+                        default=self.config_entry.options.get(CONF_VAT_VALUE, 0),
                     ): vol.All(vol.Coerce(float, "must be a number")),
                     vol.Optional(
                         CONF_MODIFYER,
                         description={
-                            "suggested_value": self.config_entry.options[CONF_MODIFYER]
+                            "suggested_value": self.config_entry.options.get(CONF_MODIFYER, DEFAULT_MODIFYER)
                         },
                         default=DEFAULT_MODIFYER,
                     ): TemplateSelector(TemplateSelectorConfig()),
                     vol.Optional(
                         CONF_CURRENCY,
-                        default=self.config_entry.options.get(
-                            CONF_CURRENCY, DEFAULT_CURRENCY
-                        ),
+                        default=self.config_entry.options.get(CONF_CURRENCY, DEFAULT_CURRENCY),
                     ): vol.All(vol.Coerce(str)),
                     vol.Optional(
                         CONF_ENERGY_SCALE,
-                        default=self.config_entry.options.get(
-                            CONF_ENERGY_SCALE, DEFAULT_ENERGY_SCALE
-                        ),
+                        default=self.config_entry.options.get(CONF_ENERGY_SCALE, DEFAULT_ENERGY_SCALE),
                     ): vol.In(list(ENERGY_SCALES.keys())),
-                    vol.Optional(
-                        CONF_PERIOD,
-                        default=self.config_entry.options.get(
-                            CONF_PERIOD, DEFAULT_PERIOD
-                        ),
-                    ): vol.In(PERIOD_OPTIONS),
                     vol.Optional(
                         CONF_CALCULATION_MODE,
                         default=calculation_mode_default,
@@ -362,11 +318,9 @@ class EntsoeOptionFlowHandler(OptionsFlow):
 
     async def _valid_template(self, user_template):
         try:
-            ut = Template(user_template, self.hass).async_render(
-                current_price=0
-            )
-            float(ut)  # Verify template produces a numeric value
+            ut = Template(user_template, self.hass).async_render(current_price=0)
+            float(ut)
             return True
-        except Exception as e:
+        except Exception:
             pass
         return False

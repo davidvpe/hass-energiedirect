@@ -1,0 +1,11 @@
+{
+  "domain": "energiedirect",
+  "name": "Energiedirect Dynamic Prices",
+  "codeowners": ["@davidvpe"],
+  "config_flow": true,
+  "documentation": "https://github.com/davidvpe/hass-energiedirect",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/davidvpe/hass-energiedirect/issues",
+  "requirements": [],
+  "version": "1.0.2"
+}

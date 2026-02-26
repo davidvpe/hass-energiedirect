@@ -1,0 +1,67 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "description": "Energiedirect dynamische Preise konfigurieren. Kein API-Schlüssel erforderlich.",
+        "data": {
+          "energy_type": "Energieart",
+          "advanced_options": "Ich möchte USt. (MwSt.), Vorlage und Berechnungsart definieren (nächster Schritt)",
+          "name": "Name (optional)"
+        }
+      },
+      "extra": {
+        "data": {
+          "VAT_value": "Zusätzlicher USt. (MwSt.) Tarif (z.B. für 21% > 0.21 angeben)",
+          "modifyer": "Preisanpassungsvorlage (optional)",
+          "currency": "Währung des angepassten Preises (optional)",
+          "energy_scale": "Energieeinheit (optional, nur Strom)"
+        }
+      }
+    },
+    "error": {
+      "invalid_template": "Ungültige Vorlage",
+      "missing_current_price": "Wert 'current_price' fehlt in der Vorlage",
+      "already_configured": "Integration mit gleichem Namen bereits vorhanden, bitte anderen Namen angeben"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "description": "Energiedirect dynamische Preise Optionen aktualisieren",
+        "data": {
+          "energy_type": "Energieart",
+          "modifyer": "Preisanpassungsvorlage (optional)",
+          "currency": "Währung des angepassten Preises (optional)",
+          "energy_scale": "Energieeinheit (optional, nur Strom)",
+          "VAT_value": "Zusätzlicher USt. (MwSt.) Tarif (z.B. für 21% > 0.21 angeben)",
+          "name": "Name (optional)"
+        }
+      }
+    },
+    "error": {
+      "invalid_template": "Ungültige Vorlage",
+      "missing_current_price": "Wert 'current_price' fehlt in der Vorlage",
+      "already_configured": "Integration mit gleichem Namen bereits vorhanden, bitte anderen Namen angeben"
+    }
+  },
+  "services": {
+    "get_energy_prices": {
+      "name": "Hole Energiepreise",
+      "description": "Hole gecachte Preise von Energiedirect für einen bestimmten Bereich",
+      "fields": {
+        "config_entry": {
+          "name": "Konfigurationseintrag",
+          "description": "Zu verwendender Konfigurationseintrag für diesen Dienst"
+        },
+        "start": {
+          "name": "Start",
+          "description": "Beginn Datum und Zeit - Vorgabe ist Heute wenn keine Angabe"
+        },
+        "end": {
+          "name": "Ende",
+          "description": "Ende Datum und Zeit - Vorgabe ist Heute wenn keine Angabe"
+        }
+      }
+    }
+  }
+}

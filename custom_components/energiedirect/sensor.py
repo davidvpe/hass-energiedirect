@@ -1,4 +1,4 @@
-"""ENTSO-e current electricity and gas price information service."""
+"""Energiedirect current electricity and gas price information service."""
 
 from __future__ import annotations
 
@@ -28,102 +28,104 @@ from .const import (
     ATTRIBUTION,
     CONF_CURRENCY,
     CONF_ENERGY_SCALE,
+    CONF_ENERGY_TYPE,
     CONF_ENTITY_NAME,
     DEFAULT_CURRENCY,
     DEFAULT_ENERGY_SCALE,
+    DEFAULT_ENERGY_TYPE,
     DOMAIN,
+    ENERGY_TYPE_GAS,
 )
-from .coordinator import EntsoeCoordinator
-from .utils import get_interval_minutes
+from .coordinator import EnergieDirectCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
-class EntsoeEntityDescription(SensorEntityDescription):
-    """Describes ENTSO-e sensor entity."""
+class EnergieDirectEntityDescription(SensorEntityDescription):
+    """Describes Energiedirect sensor entity."""
 
-    value_fn: Callable[[dict], StateType] = None
+    value_fn: Callable[[EnergieDirectCoordinator], StateType] = None
 
 
 def sensor_descriptions(
-    currency: str, energy_scale: str
-) -> tuple[EntsoeEntityDescription, ...]:
-    """Construct EntsoeEntityDescription."""
+    energy_label: str, currency: str, unit: str
+) -> tuple[EnergieDirectEntityDescription, ...]:
+    """Construct EnergieDirectEntityDescription."""
     return (
-        EntsoeEntityDescription(
+        EnergieDirectEntityDescription(
             key="current_price",
-            name="Current electricity market price",
-            native_unit_of_measurement=f"{currency}/{energy_scale}",
+            name=f"Current {energy_label} market price",
+            native_unit_of_measurement=f"{currency}/{unit}",
             state_class=SensorStateClass.MEASUREMENT,
             icon="mdi:currency-eur",
             suggested_display_precision=3,
             value_fn=lambda coordinator: coordinator.get_current_price(),
         ),
-        EntsoeEntityDescription(
-            key="next_hour_price",  # Technically this is the price for the next period, which may be 15 or 60 minutes. Keeping for backwards compatibility.
-            name="Next hour electricity market price",
-            native_unit_of_measurement=f"{currency}/{energy_scale}",
+        EnergieDirectEntityDescription(
+            key="next_hour_price",
+            name=f"Next hour {energy_label} market price",
+            native_unit_of_measurement=f"{currency}/{unit}",
             state_class=SensorStateClass.MEASUREMENT,
             icon="mdi:currency-eur",
             suggested_display_precision=3,
             value_fn=lambda coordinator: coordinator.get_next_price(),
         ),
-        EntsoeEntityDescription(
+        EnergieDirectEntityDescription(
             key="min_price",
-            name="Lowest energy price",
-            native_unit_of_measurement=f"{currency}/{energy_scale}",
+            name=f"Lowest {energy_label} price",
+            native_unit_of_measurement=f"{currency}/{unit}",
             state_class=SensorStateClass.MEASUREMENT,
             icon="mdi:currency-eur",
             suggested_display_precision=3,
             value_fn=lambda coordinator: coordinator.get_min_price(),
         ),
-        EntsoeEntityDescription(
+        EnergieDirectEntityDescription(
             key="max_price",
-            name="Highest energy price",
-            native_unit_of_measurement=f"{currency}/{energy_scale}",
+            name=f"Highest {energy_label} price",
+            native_unit_of_measurement=f"{currency}/{unit}",
             state_class=SensorStateClass.MEASUREMENT,
             icon="mdi:currency-eur",
             suggested_display_precision=3,
             value_fn=lambda coordinator: coordinator.get_max_price(),
         ),
-        EntsoeEntityDescription(
+        EnergieDirectEntityDescription(
             key="avg_price",
-            name="Average electricity price",
-            native_unit_of_measurement=f"{currency}/{energy_scale}",
+            name=f"Average {energy_label} price",
+            native_unit_of_measurement=f"{currency}/{unit}",
             state_class=SensorStateClass.MEASUREMENT,
             icon="mdi:currency-eur",
             suggested_display_precision=3,
             value_fn=lambda coordinator: coordinator.get_avg_price(),
         ),
-        EntsoeEntityDescription(
+        EnergieDirectEntityDescription(
             key="percentage_of_max",
-            name="Current percentage of highest electricity price",
+            name=f"Current percentage of highest {energy_label} price",
             native_unit_of_measurement=f"{PERCENTAGE}",
             icon="mdi:percent",
             suggested_display_precision=1,
             state_class=SensorStateClass.MEASUREMENT,
             value_fn=lambda coordinator: coordinator.get_percentage_of_max(),
         ),
-        EntsoeEntityDescription(
+        EnergieDirectEntityDescription(
             key="percentage_of_range",
-            name="Current percentage in electricity price range",
+            name=f"Current percentage in {energy_label} price range",
             native_unit_of_measurement=f"{PERCENTAGE}",
             icon="mdi:percent",
             suggested_display_precision=1,
             state_class=SensorStateClass.MEASUREMENT,
             value_fn=lambda coordinator: coordinator.get_percentage_of_range(),
         ),
-        EntsoeEntityDescription(
+        EnergieDirectEntityDescription(
             key="highest_price_time_today",
-            name="Time of highest price",
+            name=f"Time of highest {energy_label} price",
             device_class=SensorDeviceClass.TIMESTAMP,
             icon="mdi:clock",
             value_fn=lambda coordinator: coordinator.get_max_time(),
         ),
-        EntsoeEntityDescription(
+        EnergieDirectEntityDescription(
             key="lowest_price_time_today",
-            name="Time of lowest price",
+            name=f"Time of lowest {energy_label} price",
             device_class=SensorDeviceClass.TIMESTAMP,
             icon="mdi:clock",
             value_fn=lambda coordinator: coordinator.get_min_time(),
@@ -136,35 +138,40 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up ENTSO-e price sensor entries."""
-    entsoe_coordinator = hass.data[DOMAIN][config_entry.entry_id]
+    """Set up Energiedirect price sensor entries."""
+    coordinator: EnergieDirectCoordinator = hass.data[DOMAIN][config_entry.entry_id]
+
+    energy_type = config_entry.options.get(CONF_ENERGY_TYPE, DEFAULT_ENERGY_TYPE)
+    currency = config_entry.options.get(CONF_CURRENCY, DEFAULT_CURRENCY)
+    energy_scale = config_entry.options.get(CONF_ENERGY_SCALE, DEFAULT_ENERGY_SCALE)
+
+    if energy_type == ENERGY_TYPE_GAS:
+        energy_label = "gas"
+        unit = "m³"
+    else:
+        energy_label = "electricity"
+        unit = energy_scale
 
     entities = []
-    entity = {}
-    for description in sensor_descriptions(
-        currency=config_entry.options.get(CONF_CURRENCY, DEFAULT_CURRENCY),
-        energy_scale=config_entry.options.get(CONF_ENERGY_SCALE, DEFAULT_ENERGY_SCALE),
-    ):
-        entity = description
+    for description in sensor_descriptions(energy_label=energy_label, currency=currency, unit=unit):
         entities.append(
-            EntsoeSensor(
-                entsoe_coordinator, entity, config_entry.options[CONF_ENTITY_NAME]
+            EnergieDirectSensor(
+                coordinator, description, config_entry.options[CONF_ENTITY_NAME]
             )
         )
 
-    # Add an entity for each sensor type
     async_add_entities(entities, True)
 
 
-class EntsoeSensor(CoordinatorEntity, RestoreSensor):
-    """Representation of a ENTSO-e sensor."""
+class EnergieDirectSensor(CoordinatorEntity, RestoreSensor):
+    """Representation of an Energiedirect sensor."""
 
     _attr_attribution = ATTRIBUTION
 
     def __init__(
         self,
-        coordinator: EntsoeCoordinator,
-        description: EntsoeEntityDescription,
+        coordinator: EnergieDirectCoordinator,
+        description: EnergieDirectEntityDescription,
         name: str = "",
     ) -> None:
         """Initialize the sensor."""
@@ -172,17 +179,15 @@ class EntsoeSensor(CoordinatorEntity, RestoreSensor):
         self.last_update_success = True
 
         if name not in (None, ""):
-            # The Id used for addressing the entity in the ui, recorder history etc.
             self.entity_id = f"{DOMAIN}.{slugify(name)}_{slugify(description.name)}"
-            # unique id in .storage file for ui configuration.
-            self._attr_unique_id = f"entsoe.{name}_{description.key}"
+            self._attr_unique_id = f"energiedirect.{name}_{description.key}"
             self._attr_name = f"{description.name} ({name})"
         else:
             self.entity_id = f"{DOMAIN}.{slugify(description.name)}"
-            self._attr_unique_id = f"entsoe.{description.key}"
+            self._attr_unique_id = f"energiedirect.{description.key}"
             self._attr_name = f"{description.name}"
 
-        self.entity_description: EntsoeEntityDescription = description
+        self.entity_description: EnergieDirectEntityDescription = description
         self._attr_icon = description.icon
         self._attr_suggested_display_precision = (
             description.suggested_display_precision
@@ -195,12 +200,12 @@ class EntsoeSensor(CoordinatorEntity, RestoreSensor):
             identifiers={
                 (
                     DOMAIN,
-                    f"{coordinator.config_entry.entry_id}_entsoe",
+                    f"{coordinator.config_entry.entry_id}_energiedirect",
                 )
             },
-            manufacturer="entso-e",
+            manufacturer="Energiedirect",
             model="",
-            name="entso-e" + ((" (" + name + ")") if name != "" else ""),
+            name="Energiedirect" + ((" (" + name + ")") if name != "" else ""),
         )
 
         self._update_job = HassJob(self.async_schedule_update_ha_state)
@@ -223,14 +228,10 @@ class EntsoeSensor(CoordinatorEntity, RestoreSensor):
 
     async def async_update(self) -> None:
         """Get the latest data and updates the states."""
-        # _LOGGER.debug(f"update function for '{self.entity_id} called.'")
-
-        # Cancel the currently scheduled event if there is any
         if self._unsub_update:
             self._unsub_update()
             self._unsub_update = None
 
-        # Schedule the next update after the interval
         self._unsub_update = event.async_track_point_in_utc_time(
             self.hass,
             self._update_job,
@@ -238,7 +239,6 @@ class EntsoeSensor(CoordinatorEntity, RestoreSensor):
             + self.coordinator.update_interval,
         )
 
-        # ensure the calculated data is refreshed
         await self.coordinator.sync_calculator()
 
         if (
@@ -247,15 +247,12 @@ class EntsoeSensor(CoordinatorEntity, RestoreSensor):
         ):
             value: Any = None
             try:
-                # _LOGGER.debug(f"current coordinator.data value: {self.coordinator.data}")
                 value = self.entity_description.value_fn(self.coordinator)
-
                 self._attr_native_value = value
                 self.last_update_success = True
                 _LOGGER.debug(f"updated '{self.entity_id}' to value: {value}")
 
             except Exception as exc:
-                # No data available
                 self.last_update_success = False
                 _LOGGER.warning(
                     f"Unable to update entity '{self.entity_id}', value: {value} and error: {exc}, data: {self.coordinator.data}"
@@ -265,7 +262,7 @@ class EntsoeSensor(CoordinatorEntity, RestoreSensor):
                 f"Unable to update entity '{self.entity_id}': No valid data for today available."
             )
             self.last_update_success = False
- 
+
     @property
     def extra_state_attributes(self):
         if self.description.key != "avg_price":
@@ -275,7 +272,6 @@ class EntsoeSensor(CoordinatorEntity, RestoreSensor):
         return {
             "prices_today": self.coordinator.get_prices_today(),
             "prices_tomorrow": self.coordinator.get_prices_tomorrow(),
-            "prices": self.coordinator.get_prices(),
         }
 
     @property

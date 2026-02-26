@@ -2,23 +2,19 @@
   "config": {
     "step": {
       "user": {
-        "description": "Please add the ENTSO-e Transparency Platform API key and area",
+        "description": "Configure Energiedirect dynamic pricing. No API key required.",
         "data": {
-          "api_key": "Your API Key",
-          "area": "Area*",
+          "energy_type": "Energy type",
           "advanced_options": "I want to set VAT, template and calculation method (next step)",
-          "modifyer": "Price Modifyer Template (Optional)",
-          "currency": "Currency of the modified price (Optional)",
-          "energy_scale": "Energy scale (Optional)",
           "name": "Name (Optional)"
         }
       },
       "extra": {
         "data": {
-          "VAT_value": "VAT tariff (example: for 21% VAT enter 0.21)",
-          "modifyer": "Price Modifyer Template (Optional)",
+          "VAT_value": "Additional VAT tariff (example: for 21% extra VAT enter 0.21)",
+          "modifyer": "Price Modifier Template (Optional)",
           "currency": "Currency of the modified price (Optional)",
-          "energy_scale": "Energy scale (Optional)"
+          "energy_scale": "Energy scale (Optional, electricity only)"
         }
       }
     },
@@ -31,14 +27,13 @@
   "options": {
     "step": {
       "init": {
-        "description": "Please add the ENTSO-e Transparency Platform API key and area",
+        "description": "Update Energiedirect dynamic pricing options",
         "data": {
-          "api_key": "Your API Key",
-          "area": "Area*",
-          "modifyer": "Price Modifyer Template (Optional)",
+          "energy_type": "Energy type",
+          "modifyer": "Price Modifier Template (Optional)",
           "currency": "Currency of the modified price (Optional)",
-          "energy_scale": "Energy scale (Optional)",
-          "VAT_value": "VAT tariff (example: for 21% VAT enter 0.21)",
+          "energy_scale": "Energy scale (Optional, electricity only)",
+          "VAT_value": "Additional VAT tariff (example: for 21% extra VAT enter 0.21)",
           "name": "Name (Optional)"
         }
       }
@@ -52,7 +47,7 @@
   "services": {
     "get_energy_prices": {
       "name": "Get energy prices",
-      "description": "Request prices for a specified range from entso-e",
+      "description": "Request cached prices for a specified range from Energiedirect",
       "fields": {
         "config_entry": {
           "name": "Config Entry",

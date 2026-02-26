@@ -1,7 +1,5 @@
 {
-  "name": "ENTSO-e Transparency Platform",
+  "name": "Energiedirect Dynamic Prices",
   "homeassistant": "2024.1.0",
-  "render_readme": true,
-  "zip_release": true,
-  "filename": "entsoe.zip"
+  "render_readme": true
 }

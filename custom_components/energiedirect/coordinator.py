@@ -14,38 +14,35 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt
 from jinja2 import pass_context
 
-from .api_client import EntsoeClient
-from .const import AREA_INFO, CALCULATION_MODE, DEFAULT_MODIFYER, ENERGY_SCALES
-from .utils import get_interval_minutes, bucket_time
+from .api_client import EnergieDirectClient
+from .const import (
+    CALCULATION_MODE,
+    DEFAULT_MODIFYER,
+    ENERGY_SCALES,
+    ENERGY_TYPE_GAS,
+)
+from .utils import bucket_time
 
-# depending on timezone les than 24 hours could be returned.
 MIN_HOURS = 20
+PERIOD_MINUTES = 60
 
 
-# This class contains actually two main tasks
-# 1. ENTSO: Refresh data from ENTSO on interval basis triggered by HASS every 60 minutes
-# 2. ANALYSIS:  Implement some analysis on this data, like min(), max(), avg(), perc(). Updated analysis is triggered by an explicit call from a sensor
-class EntsoeCoordinator(DataUpdateCoordinator):
+class EnergieDirectCoordinator(DataUpdateCoordinator):
     """Get the latest data and update the states."""
 
     def __init__(
             self,
             hass: HomeAssistant,
-            api_key,
-            area,
-            period,
-            energy_scale,
+            energy_type: str,
+            energy_scale: str,
             modifyer,
             calculation_mode=CALCULATION_MODE["default"],
             VAT=0,
     ) -> None:
         """Initialize the data object."""
         self.hass = hass
-        self.api_key = api_key
+        self.energy_type = energy_type
         self.modifyer = modifyer
-        self.period = period
-        self.period_minutes = get_interval_minutes(period)
-        self.area = AREA_INFO[area]["code"]
         self.energy_scale = energy_scale
         self.calculation_mode = calculation_mode
         self.vat = VAT
@@ -54,13 +51,10 @@ class EntsoeCoordinator(DataUpdateCoordinator):
         self.lock = asyncio.Lock()
         self._last_cleanup_date = None
 
-        # Check incase the sensor was setup using config flow.
-        # This blow up if the template isnt valid.
         if not isinstance(self.modifyer, Template):
             if self.modifyer in (None, ""):
                 self.modifyer = DEFAULT_MODIFYER
             self.modifyer = cv.template(self.modifyer)
-        # check for yaml setup.
         else:
             if self.modifyer.template in ("", None):
                 self.modifyer = cv.template(DEFAULT_MODIFYER)
@@ -69,26 +63,26 @@ class EntsoeCoordinator(DataUpdateCoordinator):
         super().__init__(
             hass,
             logger,
-            name="ENTSO-e coordinator",
-            update_interval=timedelta(minutes=self.period_minutes),
+            name="Energiedirect coordinator",
+            update_interval=timedelta(minutes=PERIOD_MINUTES),
         )
 
-    # ENTSO: recalculate the price using the given template
+    def _get_scale_factor(self) -> float:
+        """Return the scale factor for the price. Gas prices are always in EUR/m³."""
+        if self.energy_type == ENERGY_TYPE_GAS:
+            return 1.0
+        return ENERGY_SCALES.get(self.energy_scale, 1)
+
     def calc_price(self, value, fake_dt=None, no_template=False) -> float:
         """Calculate price based on the users settings."""
-        # Used to inject the current hour.
-        # so template can be simplified using now
         if no_template:
-            price = round(value / ENERGY_SCALES[self.energy_scale], 5)
-            return price
+            return round(value * self._get_scale_factor(), 5)
 
-        price = value / ENERGY_SCALES[self.energy_scale]
+        price = value * self._get_scale_factor()
         if fake_dt is not None:
-
             def faker():
                 def inner(*args, **kwargs):
                     return fake_dt
-
                 return pass_context(inner)
 
             template_value = self.modifyer.async_render(
@@ -108,46 +102,34 @@ class EntsoeCoordinator(DataUpdateCoordinator):
 
         return price
 
-    # ENTSO: recalculate the price for each price
     def parse_hourprices(self, hourprices):
         return {hour: self.calc_price(value=price, fake_dt=hour) for hour, price in hourprices.items()}
 
-    # ENTSO: Triggered by HA to refresh the data (interval = 60 minutes)
     async def _async_update_data(self) -> dict:
-        """Get the latest data from ENTSO-e"""
-        self.logger.debug("ENTSO-e DataUpdateCoordinator data update")
-        self.logger.debug(self.area)
+        """Get the latest data from Energiedirect."""
+        self.logger.debug("Energiedirect DataUpdateCoordinator data update")
 
         now = dt.now()
-        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
         if self.check_update_needed(now) is False:
             self.logger.debug("Skipping api fetch. All data is already available")
             return self.data
 
-        yesterday = today - timedelta(days=1)
-        tomorrow_evening = yesterday + timedelta(hours=71)
-
-        self.logger.debug(f"fetching prices for start date: {yesterday} to end date: {tomorrow_evening}")
-        data = await self.fetch_prices(yesterday, tomorrow_evening)
+        data = await self.fetch_prices()
         self.logger.debug(f"received data = {data}")
-
 
         if data is not None:
             if data is self.data:
-                # Degraded mode returned cached data; don't re-parse already-processed prices
                 self.logger.debug("Using cached data from degraded mode")
                 return data
             parsed_data = self.parse_hourprices(data)
             self.logger.debug(
-                f"received pricing data from entso-e for {len(data)} hours"
+                f"received pricing data from Energiedirect for {len(data)} hours ({self.energy_type})"
             )
             self.data = parsed_data
             return parsed_data
-        
-        # Return existing data if available, otherwise empty dict
+
         return self.data if self.data is not None else {}
 
-    # ENTSO: check if we need to refresh the data. If we have None, or less than 20hrs left for today, or less than 20hrs tomorrow and its after 11
     def check_update_needed(self, now):
         if self.data is None:
             return True
@@ -157,107 +139,83 @@ class EntsoeCoordinator(DataUpdateCoordinator):
             return True
         return False
 
-    # ENTSO: new prices using an async job
-    async def fetch_prices(self, start_date, end_date):
+    async def fetch_prices(self):
         try:
             async with async_timeout.timeout(10):
-                client = EntsoeClient(api_key=self.api_key, period=self.period)
-                return await client.query_day_ahead_prices(
-                    country_code=self.area, start=start_date, end=end_date
-                )
+                client = EnergieDirectClient()
+                all_prices = await client.fetch_prices()
+                return all_prices.get(self.energy_type, {})
 
         except Exception as exc:
-            if isinstance(exc, aiohttp.ClientResponseError) and exc.status == 401:
-                raise UpdateFailed("Unauthorized: Please check your API-key.") from exc
             if self.data is not None and len(self.data) > 0:
                 newest_timestamp = max(self.data.keys())
                 if newest_timestamp > dt.now():
                     self.logger.warning(
-                        f"Warning the integration is running in degraded mode (falling back on stored data) since fetching the latest ENTSOE-e prices failed with exception: {exc}."
+                        f"Warning: running in degraded mode (using stored data) since fetching "
+                        f"Energiedirect prices failed: {exc}."
                     )
                     return self.data
                 else:
                     raise UpdateFailed(
-                        f"The latest available data is older than the current time. Therefore entities will no longer update. Error: {exc}"
+                        f"The latest available data is older than the current time. "
+                        f"Entities will no longer update. Error: {exc}"
                     ) from exc
             else:
-                self.logger.error("Failed fetching data from Entso-e")
-                raise UpdateFailed("Fetching data from Entso-e failed.") from exc
-                # self.logger.warning(
-                #     f"Warning the integration doesn't have any up to date local data this means that entities won't get updated but access remains to restorable entities: {exc}."
-                # )
+                self.logger.error("Failed fetching data from Energiedirect")
+                raise UpdateFailed("Fetching data from Energiedirect failed.") from exc
 
     @property
     def today(self):
         return dt.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
-    # ENTSO: Return the data for the given date
     def get_data(self, date):
         return {k: v for k, v in self.data.items() if k.date() == date.date()}
 
-    # ENTSO: Return the data for today
     def get_data_today(self):
         return self.get_data(self.today)
 
-    # ENTSO: Return the data for tomorrow
     def get_data_tomorrow(self):
         return self.get_data(self.today + timedelta(days=1))
 
-    # ENTSO: Return the data for yesterday
     def get_data_yesterday(self):
         return self.get_data(self.today - timedelta(days=1))
 
-    # SENSOR: Do we have data available for today
     def today_data_available(self):
         return len(self.get_data_today()) > MIN_HOURS
 
     @property
     def current_bucket_time(self):
-        return bucket_time(dt.now(), self.period_minutes)
+        return bucket_time(dt.now(), PERIOD_MINUTES)
 
-    # SENSOR: Get the current price
+    @property
+    def period_minutes(self):
+        return PERIOD_MINUTES
+
     def get_current_price(self) -> float | None:
         return self.data.get(self.current_bucket_time)
 
-    # SENSOR: Get the next hour price
     def get_next_price(self) -> float | None:
         return self.data.get(
-            self.current_bucket_time + timedelta(minutes=self.period_minutes)
+            self.current_bucket_time + timedelta(minutes=PERIOD_MINUTES)
         )
 
-    # SENSOR: Get timestamped prices of today as attribute for Average Sensor
     def get_prices_today(self):
         return self.get_timestamped_prices(self.get_data_today())
 
-    # SENSOR: Get timestamped prices of tomorrow as attribute for Average Sensor
     def get_prices_tomorrow(self):
         return self.get_timestamped_prices(self.get_data_tomorrow())
 
-    # SENSOR: Get timestamped prices of today & tomorrow or yesterday & today as attribute for Average Sensor
     def get_prices(self):
-        if len(self.data) > 48:
-            return self.get_timestamped_prices(
-                {hour: price for hour, price in self.data.items() if hour >= self.today}
-            )
         return self.get_timestamped_prices(
-            {
-                hour: price
-                for hour, price in self.data.items()
-                if hour >= self.today - timedelta(days=1)
-            }
+            {hour: price for hour, price in self.data.items() if hour >= self.today}
         )
 
-    # SENSOR: Timestamp the prices
     def get_timestamped_prices(self, hourprices):
-        list = []
+        result = []
         for hour, price in hourprices.items():
-            str_hour = str(hour)
-            list.append({"time": str_hour, "price": price})
-        return list
+            result.append({"time": str(hour), "price": price})
+        return result
 
-    # --------------------------------------------------------------------------------------------------------------------------------
-    # ANALYSIS: this method is called by each sensor, each complete hour, and ensures the date and filtered hourprices are in line with the current time
-    # we could still optimize as not every calculator mode needs hourly updates
     async def sync_calculator(self):
         now = dt.now()
         bucket = self.current_bucket_time
@@ -266,9 +224,7 @@ class EntsoeCoordinator(DataUpdateCoordinator):
                 self.calculator_last_sync is None
                 or self.calculator_last_sync != bucket
             ):
-                self.logger.debug(
-                    "The calculator needs to be synced with the current time"
-                )
+                self.logger.debug("The calculator needs to be synced with the current time")
                 if not self.data:
                     self.logger.debug("no data available yet, fetching data")
                     try:
@@ -281,12 +237,9 @@ class EntsoeCoordinator(DataUpdateCoordinator):
 
                 current_date = now.date()
                 if self._last_cleanup_date is None or self._last_cleanup_date != current_date:
-                    self.logger.debug(
-                        "new day detected: update today and filtered hourprices"
-                    )
+                    self.logger.debug("new day detected: cleanup stale data")
                     self._last_cleanup_date = current_date
 
-                    # remove stale data
                     self.data = {
                         hour: price
                         for hour, price in self.data.items()
@@ -295,28 +248,20 @@ class EntsoeCoordinator(DataUpdateCoordinator):
 
             self.calculator_last_sync = bucket
 
-    # ANALYSIS: filter the prices on which to apply the calculations based on the calculation_mode
     @property
     def _filtered_prices(self) -> dict:
-        """
-        Filter the prices based on the calculation mode.
-        """
-        # rotation = calculations made upon 24hrs today
         if self.calculation_mode == CALCULATION_MODE["rotation"]:
             return {
                 ts: price
                 for ts, price in self.data.items()
                 if self.today <= ts < self.today + timedelta(days=1)
             }
-        # sliding = calculations made on all data from the current bucket and beyond (future data only)
         elif self.calculation_mode == CALCULATION_MODE["sliding"]:
             return {ts: price for ts, price in self.data.items() if ts >= self.current_bucket_time}
-        # publish >48 hrs of data = calculations made on all data of today and tomorrow (48 hrs)
         elif (
                 self.calculation_mode == CALCULATION_MODE["publish"] and len(self.data) > 48
         ):
             return {ts: price for ts, price in self.data.items() if ts >= self.today}
-        # publish <=48 hrs of data = calculations made on all data of yesterday and today (48 hrs)
         elif self.calculation_mode == CALCULATION_MODE["publish"]:
             return {
                 ts: price
@@ -327,45 +272,36 @@ class EntsoeCoordinator(DataUpdateCoordinator):
         self.logger.error("Unknown calculation mode, returning empty filtered prices")
         return {}
 
-    # ANALYSIS: Get max price in filtered period
     def get_max_price(self):
         prices = self._filtered_prices
         if not prices:
             return None
         return max(prices.values())
 
-    # ANALYSIS: Get min price in filtered period
     def get_min_price(self):
         prices = self._filtered_prices
         if not prices:
             return None
         return min(prices.values())
 
-    # ANALYSIS: Get timestamp of max price in filtered period
     def get_max_time(self):
         prices = self._filtered_prices
         if not prices:
             return None
         return max(prices, key=prices.get)
 
-    # ANALYSIS: Get timestamp of min price in filtered period
     def get_min_time(self):
         prices = self._filtered_prices
         if not prices:
             return None
         return min(prices, key=prices.get)
 
-    # ANALYSIS: Get avg price in filtered period
     def get_avg_price(self):
         prices = self._filtered_prices
         if not prices:
             return None
-        return round(
-            sum(prices.values()) / len(prices.values()),
-            5,
-        )
+        return round(sum(prices.values()) / len(prices.values()), 5)
 
-    # ANALYSIS: Get percentage of current price relative to maximum of filtered period
     def get_percentage_of_max(self):
         current_price = self.get_current_price()
         max_price = self.get_max_price()
@@ -373,7 +309,6 @@ class EntsoeCoordinator(DataUpdateCoordinator):
             return None
         return round(current_price / max_price * 100, 1)
 
-    # ANALYSIS: Get percentage of current price relative to spread (max-min) of filtered period
     def get_percentage_of_range(self):
         current_price = self.get_current_price()
         min_price = self.get_min_price()
@@ -382,14 +317,10 @@ class EntsoeCoordinator(DataUpdateCoordinator):
             return None
         spread = max_price - min_price
         if spread == 0:
-            return 100.0  # If all prices are the same, current is always 100% of range
-        current = current_price - min_price
-        return round(current / spread * 100, 1)
+            return 100.0
+        return round((current_price - min_price) / spread * 100, 1)
 
-    # --------------------------------------------------------------------------------------------------------------------------------
-    # SERVICES: returns data from the coordinator cache, or directly from ENTSO when not availble
     async def get_energy_prices(self, start_date, end_date):
-        # check if we have the data already
         if (
                 len(self.get_data(start_date)) > MIN_HOURS
                 and len(self.get_data(end_date)) > MIN_HOURS
@@ -401,13 +332,12 @@ class EntsoeCoordinator(DataUpdateCoordinator):
                 if k.date() >= start_date.date() and k.date() <= end_date.date()
             }
         try:
-            data = await self.fetch_prices(start_date, end_date)
+            data = await self.fetch_prices()
         except UpdateFailed as exc:
             raise HomeAssistantError(
-                f"Failed to fetch energy prices from ENTSO-e: {exc}"
+                f"Failed to fetch energy prices from Energiedirect: {exc}"
             ) from exc
         if data is self.data:
-            # Degraded mode: return filtered cached data (already parsed)
             return {
                 k: v
                 for k, v in data.items()
