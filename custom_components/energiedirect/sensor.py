@@ -60,7 +60,7 @@ def sensor_descriptions(
             state_class=SensorStateClass.MEASUREMENT,
             icon="mdi:currency-eur",
             suggested_display_precision=3,
-            value_fn=lambda coordinator: coordinator.get_current_price(),
+            value_fn=lambda coordinator: coordinator.get_current_market_price(),
         ),
         EnergieDirectEntityDescription(
             key="next_hour_price",

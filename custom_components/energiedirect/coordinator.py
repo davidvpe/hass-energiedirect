@@ -196,6 +196,15 @@ class EnergieDirectCoordinator(DataUpdateCoordinator):
     def get_current_price(self) -> float | None:
         return self.data.get(self.current_bucket_time)
 
+    def get_current_market_price(self) -> float | None:
+        breakdown = self.breakdown_data.get(self.current_bucket_time)
+        if not breakdown:
+            return None
+        market_price = breakdown.get("market_price")
+        if market_price is None:
+            return None
+        return round(market_price * self._get_scale_factor(), 5)
+
     def get_next_price(self) -> float | None:
         return self.data.get(
             self.current_bucket_time + timedelta(minutes=PERIOD_MINUTES)
