@@ -196,6 +196,18 @@ class EnergieDirectCoordinator(DataUpdateCoordinator):
     def get_current_price(self) -> float | None:
         return self.data.get(self.current_bucket_time)
 
+    def get_current_breakdown(self) -> dict | None:
+        breakdown = self.breakdown_data.get(self.current_bucket_time)
+        if not breakdown:
+            return None
+        scale = self._get_scale_factor()
+        result = {}
+        for key in ("market_price", "purchasing_fee", "energy_tax"):
+            value = breakdown.get(key)
+            if value is not None:
+                result[key] = round(value * scale, 5)
+        return result or None
+
     def get_current_market_price(self) -> float | None:
         breakdown = self.breakdown_data.get(self.current_bucket_time)
         if not breakdown:
@@ -209,6 +221,17 @@ class EnergieDirectCoordinator(DataUpdateCoordinator):
         return self.data.get(
             self.current_bucket_time + timedelta(minutes=PERIOD_MINUTES)
         )
+
+    def get_next_market_price(self) -> float | None:
+        breakdown = self.breakdown_data.get(
+            self.current_bucket_time + timedelta(minutes=PERIOD_MINUTES)
+        )
+        if not breakdown:
+            return None
+        market_price = breakdown.get("market_price")
+        if market_price is None:
+            return None
+        return round(market_price * self._get_scale_factor(), 5)
 
     def get_prices_today(self):
         return self.get_timestamped_prices(self.get_data_today())

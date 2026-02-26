@@ -69,7 +69,7 @@ def sensor_descriptions(
             state_class=SensorStateClass.MEASUREMENT,
             icon="mdi:currency-eur",
             suggested_display_precision=3,
-            value_fn=lambda coordinator: coordinator.get_next_price(),
+            value_fn=lambda coordinator: coordinator.get_next_market_price(),
         ),
         EnergieDirectEntityDescription(
             key="min_price",
@@ -265,14 +265,18 @@ class EnergieDirectSensor(CoordinatorEntity, RestoreSensor):
 
     @property
     def extra_state_attributes(self):
-        if self.description.key != "avg_price":
+        if self.coordinator.data is None:
             return None
-        if self.native_value is None or self.coordinator.data is None:
-            return None
-        return {
-            "prices_today": self.coordinator.get_prices_today(),
-            "prices_tomorrow": self.coordinator.get_prices_tomorrow(),
-        }
+        if self.description.key == "avg_price":
+            if self.native_value is None:
+                return None
+            return {
+                "prices_today": self.coordinator.get_prices_today(),
+                "prices_tomorrow": self.coordinator.get_prices_tomorrow(),
+            }
+        if self.description.key == "current_price":
+            return self.coordinator.get_current_breakdown()
+        return None
 
     @property
     def available(self) -> bool:
