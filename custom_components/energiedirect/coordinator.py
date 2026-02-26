@@ -50,6 +50,7 @@ class EnergieDirectCoordinator(DataUpdateCoordinator):
         self.filtered_hourprices = []
         self.lock = asyncio.Lock()
         self._last_cleanup_date = None
+        self.breakdown_data: dict = {}
 
         if not isinstance(self.modifyer, Template):
             if self.modifyer in (None, ""):
@@ -144,6 +145,7 @@ class EnergieDirectCoordinator(DataUpdateCoordinator):
             async with async_timeout.timeout(10):
                 client = EnergieDirectClient()
                 all_prices = await client.fetch_prices()
+                self.breakdown_data = all_prices.get(f"{self.energy_type}_breakdown", {})
                 return all_prices.get(self.energy_type, {})
 
         except Exception as exc:
@@ -213,7 +215,13 @@ class EnergieDirectCoordinator(DataUpdateCoordinator):
     def get_timestamped_prices(self, hourprices):
         result = []
         for hour, price in hourprices.items():
-            result.append({"time": str(hour), "price": price})
+            entry = {"time": str(hour), "price": price}
+            breakdown = self.breakdown_data.get(hour)
+            if breakdown:
+                entry["market_price"] = breakdown.get("market_price")
+                entry["purchasing_fee"] = breakdown.get("purchasing_fee")
+                entry["energy_tax"] = breakdown.get("energy_tax")
+            result.append(entry)
         return result
 
     async def sync_calculator(self):

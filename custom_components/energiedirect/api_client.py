@@ -45,9 +45,22 @@ class EnergieDirectClient:
 
         return self._parse_response(data)
 
-    def _parse_response(self, data: dict) -> Dict[str, Dict[datetime, float]]:
+    def _parse_response(self, data: dict) -> dict:
         electricity: Dict[datetime, float] = {}
         gas: Dict[datetime, float] = {}
+        electricity_breakdown: Dict[datetime, dict] = {}
+        gas_breakdown: Dict[datetime, dict] = {}
+
+        breakdown_targets = {
+            "electricity": electricity_breakdown,
+            "gas": gas_breakdown,
+        }
+
+        _GROUP_TYPE_MAP = {
+            "MARKET_PRICE": "market_price",
+            "PURCHASING_FEE": "purchasing_fee",
+            "TAX": "energy_tax",
+        }
 
         for day_entry in data.get("prices", []):
             for energy_type, target in (("electricity", electricity), ("gas", gas)):
@@ -63,4 +76,17 @@ class EnergieDirectClient:
                     dt_aware = AMSTERDAM_TZ.localize(dt)
                     target[dt_aware] = amount
 
-        return {"electricity": electricity, "gas": gas}
+                    breakdown = {}
+                    for group in tariff.get("groups", []):
+                        key = _GROUP_TYPE_MAP.get(group.get("type"))
+                        if key is not None and group.get("amount") is not None:
+                            breakdown[key] = group["amount"]
+                    if breakdown:
+                        breakdown_targets[energy_type][dt_aware] = breakdown
+
+        return {
+            "electricity": electricity,
+            "gas": gas,
+            "electricity_breakdown": electricity_breakdown,
+            "gas_breakdown": gas_breakdown,
+        }
