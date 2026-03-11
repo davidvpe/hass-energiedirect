@@ -65,7 +65,8 @@ class TestCalcPrice:
         assert calc_price(0.10, scale=1, modifier_fn=MARKUP_05, vat=0) == pytest.approx(0.15)
 
     def test_custom_modifier_with_vat(self):
-        assert calc_price(0.10, scale=1, modifier_fn=MARKUP_05, vat=0.21) == pytest.approx(0.15 * 1.21)
+        # VAT applied before modifier: modifier(0.10 * 1.21) = 0.121 + 0.05 = 0.171
+        assert calc_price(0.10, scale=1, modifier_fn=MARKUP_05, vat=0.21) == pytest.approx(0.10 * 1.21 + 0.05)
 
     def test_scale_applied_before_modifier(self):
         # scale=0.001, value=100 → scaled=0.1 → modifier(0.1)=0.1+0.05=0.15

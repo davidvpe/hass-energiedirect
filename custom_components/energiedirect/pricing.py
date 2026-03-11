@@ -21,8 +21,9 @@ def calc_price(
     scaled = value * scale
     if no_template:
         return round(scaled, 5)
-    modified = float(modifier_fn(scaled))
-    return round(modified * (1 + vat), 5)
+    scaled_with_vat = scaled * (1 + vat)
+    modified = float(modifier_fn(scaled_with_vat))
+    return round(modified, 5)
 
 
 def parse_hourprices(
