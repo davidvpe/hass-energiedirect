@@ -21,11 +21,11 @@ The API returns data for yesterday, today, and tomorrow (when available). Prices
 
 ## Sensors
 
-Each configured integration instance adds the following sensors (for electricity or gas):
+Each configured integration instance adds the following sensors (for electricity or gas). All sensor values have the price modifier template applied.
 
-- **Current market price** — price for the current hour
-- **Next hour market price** — price for the next hour
-- **Average price** — average over the configured calculation window (carries `prices_today`, `prices_tomorrow`, and `prices` as attributes)
+- **Current market price** — spot market price for the current hour
+- **Next hour market price** — spot market price for the next hour
+- **Average price** — average over the configured calculation window. Carries `prices_today` and `prices_tomorrow` as attributes
 - **Highest price** — maximum over the configured window
 - **Lowest price** — minimum over the configured window
 - **Current % of highest price** — percentage of current price relative to the maximum
@@ -84,11 +84,15 @@ Go to **Settings → Devices & Services → Add Integration** and search for "En
 
 ## Price Modifier Template
 
-The `current_price` variable contains the raw price from the API (incl. 21% BTW). Use the template to add fixed costs or apply custom markup:
+The `current_price` variable in the template contains the **spot market price** (EUR/kWh or EUR/m³, scaled to your chosen unit). This is the raw market price excluding purchasing fee and energy tax — it does **not** include the full `totalAmount` from the API.
+
+Use the template to add fixed costs, a supplier margin, or any custom markup:
 
 ```
 {{current_price + 0.03}}
 ```
+
+The template is applied to all sensors.
 
 ---
 
