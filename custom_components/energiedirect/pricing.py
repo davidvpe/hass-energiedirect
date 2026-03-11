@@ -35,9 +35,10 @@ def parse_hourprices(
 ) -> dict:
     """Reconstruct total prices from breakdown components.
 
-    Template + VAT are applied only to market_price.
-    purchasing_fee and energy_tax are scaled but not modified.
-    Falls back to raw total * scale when no breakdown is available.
+    All breakdown values are stored ex-VAT (amountEx).
+    Template + VAT are applied to market_price via calc_price.
+    purchasing_fee and energy_tax are scaled and VAT is applied directly.
+    Falls back to raw total * scale * (1 + vat) when no breakdown is available.
 
     make_modifier: callable(hour) -> callable(price) -> float
     """
@@ -49,7 +50,7 @@ def parse_hourprices(
             modified_market = calc_price(breakdown["market_price"], scale, modifier_fn, vat)
             fee = breakdown.get("purchasing_fee") or 0
             tax = breakdown.get("energy_tax") or 0
-            result[hour] = round(modified_market + scale * fee + scale * tax, 5)
+            result[hour] = round(modified_market + scale * fee * (1 + vat) + scale * tax * (1 + vat), 5)
         else:
             result[hour] = round(total_amount * scale * (1 + vat), 5)
     return result
@@ -64,8 +65,9 @@ def get_breakdown_for_hour(
 ) -> dict | None:
     """Return the price breakdown for a specific hour.
 
+    All breakdown values are stored ex-VAT (amountEx).
     price: market price with modifier + VAT applied.
-    purchasing_fee / energy_tax: scaled only, no modifier or VAT.
+    purchasing_fee / energy_tax: scaled and VAT applied.
     provider_total_price: sum of all three components.
     """
     breakdown = breakdown_data.get(hour)
@@ -78,7 +80,7 @@ def get_breakdown_for_hour(
     for key in ("purchasing_fee", "energy_tax"):
         value = breakdown.get(key)
         if value is not None:
-            result[key] = round(value * scale, 5)
+            result[key] = round(value * scale * (1 + vat), 5)
     if not result:
         return None
     result["provider_total_price"] = round(
@@ -97,9 +99,10 @@ def get_timestamped_prices(
 ) -> list:
     """Return list of {time, provider_total_price, price?, purchasing_fee?, energy_tax?}.
 
+    All breakdown values are stored ex-VAT (amountEx).
     provider_total_price: total price (market + fee + tax, as calculated by parse_hourprices).
     price: market price with modifier + VAT applied.
-    purchasing_fee / energy_tax: scaled only, no modifier or VAT.
+    purchasing_fee / energy_tax: scaled and VAT applied.
     make_modifier: callable(hour) -> callable(price) -> float
     """
     result = []
@@ -115,9 +118,9 @@ def get_timestamped_prices(
                 else None
             )
             fee = breakdown.get("purchasing_fee")
-            entry["purchasing_fee"] = round(fee * scale, 5) if fee is not None else None
+            entry["purchasing_fee"] = round(fee * scale * (1 + vat), 5) if fee is not None else None
             tax = breakdown.get("energy_tax")
-            entry["energy_tax"] = round(tax * scale, 5) if tax is not None else None
+            entry["energy_tax"] = round(tax * scale * (1 + vat), 5) if tax is not None else None
         result.append(entry)
     return result
 

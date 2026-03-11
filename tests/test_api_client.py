@@ -19,21 +19,59 @@ SAMPLE_RESPONSE = {
                 "vatPercentage": 21,
                 "tariffs": [
                     {
-                        "startDateTime": "2026-02-25T00:00:00",
-                        "endDateTime": "2026-02-25T01:00:00",
-                        "totalAmount": 0.23335,
-                        "totalAmountEx": 0.19285,
-                        "totalAmountVat": 0.0405,
-                        "groups": []
+                        "startDateTime": "2026-03-11T18:00:00",
+                        "endDateTime": "2026-03-11T19:00:00",
+                        "totalAmount": 0.31279,
+                        "totalAmountEx": 0.2585,
+                        "totalAmountVat": 0.05429,
+                        "groups": [
+                            {
+                                "description": "Beursprijs",
+                                "type": "MARKET_PRICE",
+                                "amount": 0.18144,
+                                "amountEx": 0.14995
+                            },
+                            {
+                                "description": "Inkoopvergoeding",
+                                "type": "PURCHASING_FEE",
+                                "amount": 0.0205,
+                                "amountEx": 0.01694
+                            },
+                            {
+                                "description": "Energiebelasting",
+                                "type": "TAX",
+                                "amount": 0.11085,
+                                "amountEx": 0.09161
+                            }
+                        ]
                     },
                     {
-                        "startDateTime": "2026-02-25T01:00:00",
-                        "endDateTime": "2026-02-25T02:00:00",
-                        "totalAmount": 0.21100,
-                        "totalAmountEx": 0.17438,
-                        "totalAmountVat": 0.03662,
-                        "groups": []
-                    },
+                        "startDateTime": "2026-03-11T19:00:00",
+                        "endDateTime": "2026-03-11T20:00:00",
+                        "totalAmount": 0.3217,
+                        "totalAmountEx": 0.26586,
+                        "totalAmountVat": 0.05584,
+                        "groups": [
+                            {
+                                "description": "Beursprijs",
+                                "type": "MARKET_PRICE",
+                                "amount": 0.19035,
+                                "amountEx": 0.15731
+                            },
+                            {
+                                "description": "Inkoopvergoeding",
+                                "type": "PURCHASING_FEE",
+                                "amount": 0.0205,
+                                "amountEx": 0.01694
+                            },
+                            {
+                                "description": "Energiebelasting",
+                                "type": "TAX",
+                                "amount": 0.11085,
+                                "amountEx": 0.09161
+                            }
+                        ]
+                    }
                 ],
             },
             "gas": {
@@ -42,13 +80,59 @@ SAMPLE_RESPONSE = {
                 "vatPercentage": 21,
                 "tariffs": [
                     {
-                        "startDateTime": "2026-02-25T00:00:00",
-                        "endDateTime": "2026-02-25T01:00:00",
-                        "totalAmount": 1.17091,
-                        "totalAmountEx": 0.96769,
-                        "totalAmountVat": 0.20322,
-                        "groups": []
+                        "startDateTime": "2026-03-11T18:00:00",
+                        "endDateTime": "2026-03-11T19:00:00",
+                        "totalAmount": 0.31279,
+                        "totalAmountEx": 0.2585,
+                        "totalAmountVat": 0.05429,
+                        "groups": [
+                            {
+                                "description": "Beursprijs",
+                                "type": "MARKET_PRICE",
+                                "amount": 0.18144,
+                                "amountEx": 0.14995
+                            },
+                            {
+                                "description": "Inkoopvergoeding",
+                                "type": "PURCHASING_FEE",
+                                "amount": 0.0205,
+                                "amountEx": 0.01694
+                            },
+                            {
+                                "description": "Energiebelasting",
+                                "type": "TAX",
+                                "amount": 0.11085,
+                                "amountEx": 0.09161
+                            }
+                        ]
                     },
+                    {
+                        "startDateTime": "2026-03-11T19:00:00",
+                        "endDateTime": "2026-03-11T20:00:00",
+                        "totalAmount": 0.3217,
+                        "totalAmountEx": 0.26586,
+                        "totalAmountVat": 0.05584,
+                        "groups": [
+                            {
+                                "description": "Beursprijs",
+                                "type": "MARKET_PRICE",
+                                "amount": 0.19035,
+                                "amountEx": 0.15731
+                            },
+                            {
+                                "description": "Inkoopvergoeding",
+                                "type": "PURCHASING_FEE",
+                                "amount": 0.0205,
+                                "amountEx": 0.01694
+                            },
+                            {
+                                "description": "Energiebelasting",
+                                "type": "TAX",
+                                "amount": 0.11085,
+                                "amountEx": 0.09161
+                            }
+                        ]
+                    }
                 ],
             }
         },
@@ -60,13 +144,59 @@ SAMPLE_RESPONSE = {
                 "vatPercentage": 21,
                 "tariffs": [
                     {
-                        "startDateTime": "2026-02-26T00:00:00",
-                        "endDateTime": "2026-02-26T01:00:00",
-                        "totalAmount": 0.25597,
-                        "totalAmountEx": 0.21154,
-                        "totalAmountVat": 0.04443,
-                        "groups": []
+                        "startDateTime": "2026-03-11T18:00:00",
+                        "endDateTime": "2026-03-11T19:00:00",
+                        "totalAmount": 0.31279,
+                        "totalAmountEx": 0.2585,
+                        "totalAmountVat": 0.05429,
+                        "groups": [
+                            {
+                                "description": "Beursprijs",
+                                "type": "MARKET_PRICE",
+                                "amount": 0.18144,
+                                "amountEx": 0.14995
+                            },
+                            {
+                                "description": "Inkoopvergoeding",
+                                "type": "PURCHASING_FEE",
+                                "amount": 0.0205,
+                                "amountEx": 0.01694
+                            },
+                            {
+                                "description": "Energiebelasting",
+                                "type": "TAX",
+                                "amount": 0.11085,
+                                "amountEx": 0.09161
+                            }
+                        ]
                     },
+                    {
+                        "startDateTime": "2026-03-11T19:00:00",
+                        "endDateTime": "2026-03-11T20:00:00",
+                        "totalAmount": 0.3217,
+                        "totalAmountEx": 0.26586,
+                        "totalAmountVat": 0.05584,
+                        "groups": [
+                            {
+                                "description": "Beursprijs",
+                                "type": "MARKET_PRICE",
+                                "amount": 0.19035,
+                                "amountEx": 0.15731
+                            },
+                            {
+                                "description": "Inkoopvergoeding",
+                                "type": "PURCHASING_FEE",
+                                "amount": 0.0205,
+                                "amountEx": 0.01694
+                            },
+                            {
+                                "description": "Energiebelasting",
+                                "type": "TAX",
+                                "amount": 0.11085,
+                                "amountEx": 0.09161
+                            }
+                        ]
+                    }
                 ],
             },
             "gas": {
@@ -75,13 +205,59 @@ SAMPLE_RESPONSE = {
                 "vatPercentage": 21,
                 "tariffs": [
                     {
-                        "startDateTime": "2026-02-26T00:00:00",
-                        "endDateTime": "2026-02-26T01:00:00",
-                        "totalAmount": 1.16492,
-                        "totalAmountEx": 0.96274,
-                        "totalAmountVat": 0.20218,
-                        "groups": []
+                        "startDateTime": "2026-03-11T18:00:00",
+                        "endDateTime": "2026-03-11T19:00:00",
+                        "totalAmount": 0.31279,
+                        "totalAmountEx": 0.2585,
+                        "totalAmountVat": 0.05429,
+                        "groups": [
+                            {
+                                "description": "Beursprijs",
+                                "type": "MARKET_PRICE",
+                                "amount": 0.18144,
+                                "amountEx": 0.14995
+                            },
+                            {
+                                "description": "Inkoopvergoeding",
+                                "type": "PURCHASING_FEE",
+                                "amount": 0.0205,
+                                "amountEx": 0.01694
+                            },
+                            {
+                                "description": "Energiebelasting",
+                                "type": "TAX",
+                                "amount": 0.11085,
+                                "amountEx": 0.09161
+                            }
+                        ]
                     },
+                    {
+                        "startDateTime": "2026-03-11T19:00:00",
+                        "endDateTime": "2026-03-11T20:00:00",
+                        "totalAmount": 0.3217,
+                        "totalAmountEx": 0.26586,
+                        "totalAmountVat": 0.05584,
+                        "groups": [
+                            {
+                                "description": "Beursprijs",
+                                "type": "MARKET_PRICE",
+                                "amount": 0.19035,
+                                "amountEx": 0.15731
+                            },
+                            {
+                                "description": "Inkoopvergoeding",
+                                "type": "PURCHASING_FEE",
+                                "amount": 0.0205,
+                                "amountEx": 0.01694
+                            },
+                            {
+                                "description": "Energiebelasting",
+                                "type": "TAX",
+                                "amount": 0.11085,
+                                "amountEx": 0.09161
+                            }
+                        ]
+                    }
                 ],
             }
         }
@@ -101,21 +277,22 @@ class TestParseResponse:
 
     def test_electricity_entry_count(self):
         result = self.client._parse_response(SAMPLE_RESPONSE)
-        assert len(result["electricity"]) == 3  # 2 from day 1 + 1 from day 2
+        # Both days share the same startDateTimes → 2 unique entries
+        assert len(result["electricity"]) == 2
 
     def test_gas_entry_count(self):
         result = self.client._parse_response(SAMPLE_RESPONSE)
-        assert len(result["gas"]) == 2  # 1 from day 1 + 1 from day 2
+        assert len(result["gas"]) == 2
 
     def test_electricity_price_value(self):
         result = self.client._parse_response(SAMPLE_RESPONSE)
-        dt = AMSTERDAM_TZ.localize(datetime(2026, 2, 25, 0, 0, 0))
-        assert result["electricity"][dt] == pytest.approx(0.19285)
+        dt = AMSTERDAM_TZ.localize(datetime(2026, 3, 11, 18, 0, 0))
+        assert result["electricity"][dt] == pytest.approx(0.14995)
 
     def test_gas_price_value(self):
         result = self.client._parse_response(SAMPLE_RESPONSE)
-        dt = AMSTERDAM_TZ.localize(datetime(2026, 2, 25, 0, 0, 0))
-        assert result["gas"][dt] == pytest.approx(0.96769)
+        dt = AMSTERDAM_TZ.localize(datetime(2026, 3, 11, 18, 0, 0))
+        assert result["gas"][dt] == pytest.approx(0.14995)
 
     def test_datetimes_are_timezone_aware(self):
         result = self.client._parse_response(SAMPLE_RESPONSE)
@@ -150,7 +327,7 @@ class TestParseResponse:
         }
         result = self.client._parse_response(data)
         assert result["electricity"] == {}
-        assert len(result["gas"]) == 1
+        assert len(result["gas"]) == 2
 
     def test_missing_gas_key(self):
         data = {
@@ -165,7 +342,7 @@ class TestParseResponse:
         assert len(result["electricity"]) == 2
         assert result["gas"] == {}
 
-    def test_tariff_with_missing_total_amount_is_skipped(self):
+    def test_tariff_without_market_price_group_is_skipped(self):
         data = {
             "prices": [
                 {
@@ -186,7 +363,7 @@ class TestParseResponse:
                 {
                     "date": "2026-02-25",
                     "electricity": {
-                        "tariffs": [{"totalAmount": 0.23335}]
+                        "tariffs": [{"groups": [{"type": "MARKET_PRICE", "amountEx": 0.10}]}]
                     },
                     "gas": {"tariffs": []}
                 }
@@ -195,15 +372,15 @@ class TestParseResponse:
         result = self.client._parse_response(data)
         assert result["electricity"] == {}
 
-    def test_multiple_days_merged(self):
+    def test_multiple_hours_in_same_day(self):
         result = self.client._parse_response(SAMPLE_RESPONSE)
-        dates = {dt.date() for dt in result["electricity"]}
-        assert len(dates) == 2
+        assert AMSTERDAM_TZ.localize(datetime(2026, 3, 11, 18, 0, 0)) in result["electricity"]
+        assert AMSTERDAM_TZ.localize(datetime(2026, 3, 11, 19, 0, 0)) in result["electricity"]
 
-    def test_second_day_electricity_price(self):
+    def test_second_hour_electricity_price(self):
         result = self.client._parse_response(SAMPLE_RESPONSE)
-        dt = AMSTERDAM_TZ.localize(datetime(2026, 2, 26, 0, 0, 0))
-        assert result["electricity"][dt] == pytest.approx(0.21154)
+        dt = AMSTERDAM_TZ.localize(datetime(2026, 3, 11, 19, 0, 0))
+        assert result["electricity"][dt] == pytest.approx(0.15731)
 
     def test_groups_breakdown_parsed(self):
         data = {
@@ -215,9 +392,9 @@ class TestParseResponse:
                         "totalAmount": 0.23335,
                         "totalAmountEx": 0.19285,
                         "groups": [
-                            {"type": "MARKET_PRICE", "amount": 0.05},
-                            {"type": "PURCHASING_FEE", "amount": 0.10},
-                            {"type": "TAX", "amount": 0.08},
+                            {"type": "MARKET_PRICE", "amount": 0.05, "amountEx": 0.04132},
+                            {"type": "PURCHASING_FEE", "amount": 0.10, "amountEx": 0.08264},
+                            {"type": "TAX", "amount": 0.08, "amountEx": 0.06612},
                         ],
                     }]
                 },
@@ -227,9 +404,9 @@ class TestParseResponse:
         result = self.client._parse_response(data)
         dt = AMSTERDAM_TZ.localize(datetime(2026, 2, 25, 0, 0, 0))
         breakdown = result["electricity_breakdown"][dt]
-        assert breakdown["market_price"] == pytest.approx(0.05)
-        assert breakdown["purchasing_fee"] == pytest.approx(0.10)
-        assert breakdown["energy_tax"] == pytest.approx(0.08)
+        assert breakdown["market_price"] == pytest.approx(0.04132)
+        assert breakdown["purchasing_fee"] == pytest.approx(0.08264)
+        assert breakdown["energy_tax"] == pytest.approx(0.06612)
 
     def test_groups_with_unknown_type_ignored(self):
         data = {
@@ -241,8 +418,8 @@ class TestParseResponse:
                         "totalAmount": 0.23335,
                         "totalAmountEx": 0.19285,
                         "groups": [
-                            {"type": "UNKNOWN_TYPE", "amount": 0.99},
-                            {"type": "MARKET_PRICE", "amount": 0.05},
+                            {"type": "UNKNOWN_TYPE", "amount": 0.99, "amountEx": 0.82},
+                            {"type": "MARKET_PRICE", "amount": 0.05, "amountEx": 0.04132},
                         ],
                     }]
                 },
@@ -317,4 +494,4 @@ class TestFetchPrices:
 
         assert "electricity" in result
         assert "gas" in result
-        assert len(result["electricity"]) == 3
+        assert len(result["electricity"]) == 2

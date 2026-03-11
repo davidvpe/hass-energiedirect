@@ -25,7 +25,7 @@ class EnergieDirectClient:
         Fetch dynamic prices from Energiedirect API.
 
         Returns a dict with two keys: 'electricity' and 'gas',
-        each mapping datetime -> totalAmountEx (excl. VAT).
+        each mapping datetime -> Beursprijs amountEx (market price excl. VAT).
         Datetimes are timezone-aware (Europe/Amsterdam).
         """
         timeout = aiohttp.ClientTimeout(total=10, connect=5)
@@ -69,20 +69,23 @@ class EnergieDirectClient:
                     continue
                 for tariff in energy_data.get("tariffs", []):
                     start_str = tariff.get("startDateTime")
-                    amount = tariff.get("totalAmountEx")
-                    if start_str is None or amount is None:
+                    if start_str is None:
                         continue
-                    dt = datetime.strptime(start_str, "%Y-%m-%dT%H:%M:%S")
-                    dt_aware = AMSTERDAM_TZ.localize(dt)
-                    target[dt_aware] = amount
 
                     breakdown = {}
                     for group in tariff.get("groups", []):
                         key = _GROUP_TYPE_MAP.get(group.get("type"))
-                        if key is not None and group.get("amount") is not None:
-                            breakdown[key] = group["amount"]
-                    if breakdown:
-                        breakdown_targets[energy_type][dt_aware] = breakdown
+                        if key is not None and group.get("amountEx") is not None:
+                            breakdown[key] = group["amountEx"]
+
+                    market_price = breakdown.get("market_price")
+                    if market_price is None:
+                        continue
+
+                    dt = datetime.strptime(start_str, "%Y-%m-%dT%H:%M:%S")
+                    dt_aware = AMSTERDAM_TZ.localize(dt)
+                    target[dt_aware] = market_price
+                    breakdown_targets[energy_type][dt_aware] = breakdown
 
         return {
             "electricity": electricity,
