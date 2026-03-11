@@ -25,6 +25,7 @@ DEFAULT_MODIFYER = "{{current_price}}"
 DEFAULT_CURRENCY = CURRENCY_EURO
 DEFAULT_ENERGY_SCALE = "kWh"
 DEFAULT_ENERGY_TYPE = ENERGY_TYPE_ELECTRICITY
+DEFAULT_VAT = 0.21
 
 # default is only for internal use / backwards compatibility
 CALCULATION_MODE = {

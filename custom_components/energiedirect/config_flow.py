@@ -29,7 +29,7 @@ from .const import (
     CONF_ENERGY_TYPE,
     CONF_ENTITY_NAME,
     CONF_MODIFYER,
-    CONF_VAT_VALUE,
+    DEFAULT_VAT,
     DEFAULT_CURRENCY,
     DEFAULT_ENERGY_SCALE,
     DEFAULT_ENERGY_TYPE,
@@ -86,7 +86,7 @@ class EnergieDirectFlowHandler(ConfigFlow, domain=DOMAIN):
             if not already_configured:
                 if self.advanced_options:
                     return await self.async_step_extra()
-                user_input[CONF_VAT_VALUE] = 0
+                user_input[CONF_VAT_VALUE] = DEFAULT_VAT
                 user_input[CONF_MODIFYER] = DEFAULT_MODIFYER
                 user_input[CONF_CURRENCY] = DEFAULT_CURRENCY
                 user_input[CONF_ENERGY_SCALE] = DEFAULT_ENERGY_SCALE
@@ -183,7 +183,7 @@ class EnergieDirectFlowHandler(ConfigFlow, domain=DOMAIN):
             errors=errors,
             data_schema=vol.Schema(
                 {
-                    vol.Optional(CONF_VAT_VALUE, default=0): vol.All(
+                    vol.Optional(CONF_VAT_VALUE, default=DEFAULT_VAT): vol.All(
                         vol.Coerce(float, "must be a number")
                     ),
                     vol.Optional(CONF_MODIFYER, default=""): TemplateSelector(
@@ -283,7 +283,7 @@ class EnergieDirectOptionFlowHandler(OptionsFlow):
                     ),
                     vol.Optional(
                         CONF_VAT_VALUE,
-                        default=self.config_entry.options.get(CONF_VAT_VALUE, 0),
+                        default=self.config_entry.options.get(CONF_VAT_VALUE, DEFAULT_VAT),
                     ): vol.All(vol.Coerce(float, "must be a number")),
                     vol.Optional(
                         CONF_MODIFYER,

@@ -25,7 +25,7 @@ class EnergieDirectClient:
         Fetch dynamic prices from Energiedirect API.
 
         Returns a dict with two keys: 'electricity' and 'gas',
-        each mapping datetime -> totalAmount (incl. VAT).
+        each mapping datetime -> totalAmountEx (excl. VAT).
         Datetimes are timezone-aware (Europe/Amsterdam).
         """
         timeout = aiohttp.ClientTimeout(total=10, connect=5)
@@ -69,7 +69,7 @@ class EnergieDirectClient:
                     continue
                 for tariff in energy_data.get("tariffs", []):
                     start_str = tariff.get("startDateTime")
-                    amount = tariff.get("totalAmount")
+                    amount = tariff.get("totalAmountEx")
                     if start_str is None or amount is None:
                         continue
                     dt = datetime.strptime(start_str, "%Y-%m-%dT%H:%M:%S")

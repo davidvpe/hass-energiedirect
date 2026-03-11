@@ -17,6 +17,7 @@ from .const import (
     CONF_MODIFYER,
     CONF_VAT_VALUE,
     DEFAULT_MODIFYER,
+    DEFAULT_VAT,
     DEFAULT_ENERGY_SCALE,
     DEFAULT_ENERGY_TYPE,
     DOMAIN,
@@ -40,7 +41,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     energy_type = entry.options.get(CONF_ENERGY_TYPE, DEFAULT_ENERGY_TYPE)
     energy_scale = entry.options.get(CONF_ENERGY_SCALE, DEFAULT_ENERGY_SCALE)
     modifyer = entry.options.get(CONF_MODIFYER, DEFAULT_MODIFYER)
-    vat = entry.options.get(CONF_VAT_VALUE, 0)
+    vat = entry.options.get(CONF_VAT_VALUE, DEFAULT_VAT)
     calculation_mode = entry.options.get(
         CONF_CALCULATION_MODE, CALCULATION_MODE["default"]
     )

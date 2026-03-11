@@ -50,7 +50,7 @@ def parse_hourprices(
             tax = breakdown.get("energy_tax") or 0
             result[hour] = round(modified_market + scale * fee + scale * tax, 5)
         else:
-            result[hour] = round(total_amount * scale, 5)
+            result[hour] = round(total_amount * scale * (1 + vat), 5)
     return result
 
 

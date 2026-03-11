@@ -97,7 +97,7 @@ class TestParseHourprices:
 
     def test_fallback_to_total_when_no_breakdown(self):
         result = parse_hourprices({H0: 0.20}, {}, scale=1, vat=0.21, make_modifier=IDENTITY_FACTORY)
-        assert result[H0] == pytest.approx(0.20)
+        assert result[H0] == pytest.approx(0.20 * 1.21)
 
     def test_mwh_scale_applied_to_all_components(self):
         breakdown_data = {H0: bd(market_price=0.05, purchasing_fee=0.10, energy_tax=0.05)}

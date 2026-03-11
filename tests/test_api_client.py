@@ -110,12 +110,12 @@ class TestParseResponse:
     def test_electricity_price_value(self):
         result = self.client._parse_response(SAMPLE_RESPONSE)
         dt = AMSTERDAM_TZ.localize(datetime(2026, 2, 25, 0, 0, 0))
-        assert result["electricity"][dt] == pytest.approx(0.23335)
+        assert result["electricity"][dt] == pytest.approx(0.19285)
 
     def test_gas_price_value(self):
         result = self.client._parse_response(SAMPLE_RESPONSE)
         dt = AMSTERDAM_TZ.localize(datetime(2026, 2, 25, 0, 0, 0))
-        assert result["gas"][dt] == pytest.approx(1.17091)
+        assert result["gas"][dt] == pytest.approx(0.96769)
 
     def test_datetimes_are_timezone_aware(self):
         result = self.client._parse_response(SAMPLE_RESPONSE)
@@ -203,7 +203,7 @@ class TestParseResponse:
     def test_second_day_electricity_price(self):
         result = self.client._parse_response(SAMPLE_RESPONSE)
         dt = AMSTERDAM_TZ.localize(datetime(2026, 2, 26, 0, 0, 0))
-        assert result["electricity"][dt] == pytest.approx(0.25597)
+        assert result["electricity"][dt] == pytest.approx(0.21154)
 
     def test_groups_breakdown_parsed(self):
         data = {
@@ -213,6 +213,7 @@ class TestParseResponse:
                     "tariffs": [{
                         "startDateTime": "2026-02-25T00:00:00",
                         "totalAmount": 0.23335,
+                        "totalAmountEx": 0.19285,
                         "groups": [
                             {"type": "MARKET_PRICE", "amount": 0.05},
                             {"type": "PURCHASING_FEE", "amount": 0.10},
@@ -238,6 +239,7 @@ class TestParseResponse:
                     "tariffs": [{
                         "startDateTime": "2026-02-25T00:00:00",
                         "totalAmount": 0.23335,
+                        "totalAmountEx": 0.19285,
                         "groups": [
                             {"type": "UNKNOWN_TYPE", "amount": 0.99},
                             {"type": "MARKET_PRICE", "amount": 0.05},
