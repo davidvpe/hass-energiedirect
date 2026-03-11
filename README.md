@@ -46,7 +46,15 @@ The **Current market price** sensor exposes a price breakdown as attributes:
 | `energy_tax` | Provider energy tax (scaled, no template) |
 | `provider_total_price` | Sum of all three components |
 
-The **Average price** sensor exposes `prices_today` and `prices_tomorrow` as attributes. Each entry in these lists contains the same four fields: `provider_total_price`, `price`, `purchasing_fee`, and `energy_tax`.
+The **Average price** sensor exposes `prices_today` and `prices_tomorrow` as attributes. Each is a list of hourly entries with the following fields:
+
+| Field | Description |
+|---|---|
+| `time` | Hour timestamp |
+| `provider_total_price` | Energiedirect total price for that hour (market with advanced options applied + purchasing fee + energy tax, inc. BTW) |
+| `price` | Market price with VAT and template modifier applied |
+| `purchasing_fee` | Energiedirect purchasing fee (scaled only) |
+| `energy_tax` | Energiedirect energy tax — energiebelasting (scaled only) |
 
 ---
 
