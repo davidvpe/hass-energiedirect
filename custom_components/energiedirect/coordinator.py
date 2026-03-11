@@ -215,7 +215,7 @@ class EnergieDirectCoordinator(DataUpdateCoordinator):
         market_price = breakdown.get("market_price")
         if market_price is None:
             return None
-        return round(market_price * self._get_scale_factor(), 5)
+        return self.calc_price(market_price, fake_dt=self.current_bucket_time)
 
     def get_next_price(self) -> float | None:
         return self.data.get(
@@ -223,15 +223,14 @@ class EnergieDirectCoordinator(DataUpdateCoordinator):
         )
 
     def get_next_market_price(self) -> float | None:
-        breakdown = self.breakdown_data.get(
-            self.current_bucket_time + timedelta(minutes=PERIOD_MINUTES)
-        )
+        next_bucket = self.current_bucket_time + timedelta(minutes=PERIOD_MINUTES)
+        breakdown = self.breakdown_data.get(next_bucket)
         if not breakdown:
             return None
         market_price = breakdown.get("market_price")
         if market_price is None:
             return None
-        return round(market_price * self._get_scale_factor(), 5)
+        return self.calc_price(market_price, fake_dt=next_bucket)
 
     def get_prices_today(self):
         return self.get_timestamped_prices(self.get_data_today())
