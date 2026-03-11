@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 HA_MODULES = [
     "homeassistant",
     "homeassistant.config_entries",
+    "homeassistant.data_entry_flow",
     "homeassistant.const",
     "homeassistant.core",
     "homeassistant.exceptions",
