@@ -136,17 +136,22 @@ class TestGetBreakdownForHour:
     def test_all_keys_present(self):
         result = get_breakdown_for_hour({H0: bd(0.05, 0.10, 0.03)}, H0, scale=1, vat=0, modifier_fn=IDENTITY)
         assert result is not None
-        assert set(result.keys()) == {"market_price", "purchasing_fee", "energy_tax"}
+        assert set(result.keys()) == {"price", "purchasing_fee", "energy_tax", "provider_total_price"}
 
-    def test_market_price_has_modifier_applied(self):
+    def test_price_has_modifier_applied(self):
         result = get_breakdown_for_hour({H0: bd(0.05, 0.10, 0.03)}, H0, scale=1, vat=0, modifier_fn=MARKUP_05)
         assert result is not None
-        assert result["market_price"] == pytest.approx(0.10)
+        assert result["price"] == pytest.approx(0.10)
 
-    def test_market_price_has_vat_applied(self):
+    def test_price_has_vat_applied(self):
         result = get_breakdown_for_hour({H0: bd(0.05, 0.10, 0.03)}, H0, scale=1, vat=0.21, modifier_fn=IDENTITY)
         assert result is not None
-        assert result["market_price"] == pytest.approx(0.05 * 1.21)
+        assert result["price"] == pytest.approx(0.05 * 1.21)
+
+    def test_provider_total_price_is_sum_of_components(self):
+        result = get_breakdown_for_hour({H0: bd(0.05, 0.10, 0.03)}, H0, scale=1, vat=0.21, modifier_fn=IDENTITY)
+        assert result is not None
+        assert result["provider_total_price"] == pytest.approx(0.05 * 1.21 + 0.10 + 0.03)
 
     def test_fee_no_modifier_no_vat(self):
         result = get_breakdown_for_hour({H0: bd(0.05, 0.10, 0.03)}, H0, scale=1, vat=0.21, modifier_fn=DOUBLE)
@@ -161,10 +166,13 @@ class TestGetBreakdownForHour:
     def test_missing_market_price_excluded(self):
         result = get_breakdown_for_hour({H0: {"purchasing_fee": 0.10, "energy_tax": 0.03}}, H0, scale=1, vat=0, modifier_fn=IDENTITY)
         assert result is not None
-        assert "market_price" not in result
+        assert "price" not in result
 
     def test_empty_breakdown_returns_none(self):
         assert get_breakdown_for_hour({H0: {}}, H0, scale=1, vat=0, modifier_fn=IDENTITY) is None
+
+    def test_breakdown_with_only_unknown_keys_returns_none(self):
+        assert get_breakdown_for_hour({H0: {"unknown_key": 1.0}}, H0, scale=1, vat=0, modifier_fn=IDENTITY) is None
 
     def test_mwh_scale_on_fee_and_tax(self):
         result = get_breakdown_for_hour({H0: bd(0.05, 0.10, 0.05)}, H0, scale=0.001, vat=0, modifier_fn=IDENTITY)
@@ -175,9 +183,10 @@ class TestGetBreakdownForHour:
     def test_gas_scale_1_vat_on_market(self):
         result = get_breakdown_for_hour({H0: bd(0.50, 0.30, 0.20)}, H0, scale=1, vat=0.21, modifier_fn=IDENTITY)
         assert result is not None
-        assert result["market_price"] == pytest.approx(0.50 * 1.21)
+        assert result["price"] == pytest.approx(0.50 * 1.21)
         assert result["purchasing_fee"] == pytest.approx(0.30)
         assert result["energy_tax"] == pytest.approx(0.20)
+        assert result["provider_total_price"] == pytest.approx(0.50 * 1.21 + 0.30 + 0.20)
 
 
 # ---------------------------------------------------------------------------
@@ -186,15 +195,20 @@ class TestGetBreakdownForHour:
 
 class TestGetTimestampedPrices:
 
-    def test_market_price_has_modifier_applied(self):
+    def test_price_has_modifier_applied(self):
         breakdown_data = {H0: bd(0.05, 0.10, 0.03)}
         result = get_timestamped_prices({H0: 0.18}, breakdown_data, scale=1, vat=0, make_modifier=MARKUP_05_FACTORY)
-        assert result[0]["market_price"] == pytest.approx(0.10)
+        assert result[0]["price"] == pytest.approx(0.10)
 
-    def test_market_price_has_vat_applied(self):
+    def test_price_has_vat_applied(self):
         breakdown_data = {H0: bd(0.05, 0.10, 0.03)}
         result = get_timestamped_prices({H0: 0.18}, breakdown_data, scale=1, vat=0.21, make_modifier=IDENTITY_FACTORY)
-        assert result[0]["market_price"] == pytest.approx(0.05 * 1.21)
+        assert result[0]["price"] == pytest.approx(0.05 * 1.21)
+
+    def test_provider_total_price_is_total(self):
+        breakdown_data = {H0: bd(0.05, 0.10, 0.03)}
+        result = get_timestamped_prices({H0: 0.18}, breakdown_data, scale=1, vat=0, make_modifier=IDENTITY_FACTORY)
+        assert result[0]["provider_total_price"] == pytest.approx(0.18)
 
     def test_fee_no_modifier_no_vat(self):
         breakdown_data = {H0: bd(0.05, 0.10, 0.03)}
@@ -206,19 +220,19 @@ class TestGetTimestampedPrices:
         result = get_timestamped_prices({H0: 0.18}, breakdown_data, scale=1, vat=0.21, make_modifier=lambda _: DOUBLE)
         assert result[0]["energy_tax"] == pytest.approx(0.03)
 
-    def test_market_price_none_when_key_missing(self):
+    def test_price_none_when_market_price_key_missing(self):
         breakdown_data = {H0: {"purchasing_fee": 0.10}}
         result = get_timestamped_prices({H0: 0.10}, breakdown_data, scale=1, vat=0, make_modifier=IDENTITY_FACTORY)
-        assert result[0]["market_price"] is None
+        assert result[0]["price"] is None
 
     def test_no_breakdown_no_extra_fields(self):
         result = get_timestamped_prices({H0: 0.20}, {}, scale=1, vat=0, make_modifier=IDENTITY_FACTORY)
-        assert "market_price" not in result[0]
+        assert "price" not in result[0]
         assert "purchasing_fee" not in result[0]
 
-    def test_price_field_untouched(self):
+    def test_provider_total_price_always_present(self):
         result = get_timestamped_prices({H0: 0.20}, {}, scale=1, vat=0, make_modifier=IDENTITY_FACTORY)
-        assert result[0]["price"] == 0.20
+        assert result[0]["provider_total_price"] == 0.20
 
     def test_mwh_scale_on_fee_and_tax(self):
         breakdown_data = {H0: bd(0.05, 0.10, 0.05)}

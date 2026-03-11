@@ -63,7 +63,9 @@ def get_breakdown_for_hour(
 ) -> dict | None:
     """Return the price breakdown for a specific hour.
 
-    market_price has modifier + VAT applied; fee and tax are scaled only.
+    price: market price with modifier + VAT applied.
+    purchasing_fee / energy_tax: scaled only, no modifier or VAT.
+    provider_total_price: sum of all three components.
     """
     breakdown = breakdown_data.get(hour)
     if not breakdown:
@@ -71,12 +73,18 @@ def get_breakdown_for_hour(
     result = {}
     market_price = breakdown.get("market_price")
     if market_price is not None:
-        result["market_price"] = calc_price(market_price, scale, modifier_fn, vat)
+        result["price"] = calc_price(market_price, scale, modifier_fn, vat)
     for key in ("purchasing_fee", "energy_tax"):
         value = breakdown.get(key)
         if value is not None:
             result[key] = round(value * scale, 5)
-    return result or None
+    if not result:
+        return None
+    result["provider_total_price"] = round(
+        result.get("price", 0) + result.get("purchasing_fee", 0) + result.get("energy_tax", 0),
+        5,
+    )
+    return result
 
 
 def get_timestamped_prices(
@@ -86,19 +94,21 @@ def get_timestamped_prices(
     vat: float,
     make_modifier: Callable[[datetime], Callable[[float], float]],
 ) -> list:
-    """Return list of {time, price, market_price?, purchasing_fee?, energy_tax?}.
+    """Return list of {time, provider_total_price, price?, purchasing_fee?, energy_tax?}.
 
-    market_price has modifier + VAT applied; fee and tax are scaled only.
+    provider_total_price: total price (market + fee + tax, as calculated by parse_hourprices).
+    price: market price with modifier + VAT applied.
+    purchasing_fee / energy_tax: scaled only, no modifier or VAT.
     make_modifier: callable(hour) -> callable(price) -> float
     """
     result = []
-    for hour, price in hourprices.items():
-        entry = {"time": str(hour), "price": price}
+    for hour, total_price in hourprices.items():
+        entry = {"time": str(hour), "provider_total_price": total_price}
         breakdown = breakdown_data.get(hour)
         if breakdown:
             modifier_fn = make_modifier(hour)
             market_price = breakdown.get("market_price")
-            entry["market_price"] = (
+            entry["price"] = (
                 calc_price(market_price, scale, modifier_fn, vat)
                 if market_price is not None
                 else None
