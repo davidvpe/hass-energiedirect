@@ -21,6 +21,19 @@ from .const import (
     ENERGY_SCALES,
     ENERGY_TYPE_GAS,
 )
+from .pricing import (
+    calc_price,
+    get_avg_price,
+    get_breakdown_for_hour,
+    get_max_price,
+    get_max_time,
+    get_min_price,
+    get_min_time,
+    get_percentage_of_max,
+    get_percentage_of_range,
+    get_timestamped_prices,
+    parse_hourprices,
+)
 from .utils import bucket_time
 
 MIN_HOURS = 20
@@ -74,37 +87,28 @@ class EnergieDirectCoordinator(DataUpdateCoordinator):
             return 1.0
         return ENERGY_SCALES.get(self.energy_scale, 1)
 
-    def calc_price(self, value, fake_dt=None, no_template=False) -> float:
-        """Calculate price based on the users settings."""
-        if no_template:
-            return round(value * self._get_scale_factor(), 5)
-
-        price = value * self._get_scale_factor()
+    def _make_modifier(self, fake_dt=None):
+        """Return a price -> price callable wrapping the HA template modifier."""
         if fake_dt is not None:
             def faker():
                 def inner(*args, **kwargs):
                     return fake_dt
                 return pass_context(inner)
 
-            template_value = self.modifyer.async_render(
-                now=faker(), current_price=price
-            )
-        else:
-            template_value = self.modifyer.async_render(current_price=price)
+            return lambda price: self.modifyer.async_render(now=faker(), current_price=price)
+        return lambda price: self.modifyer.async_render(current_price=price)
 
-        try:
-            price = round(float(template_value) * (1 + self.vat), 5)
-        except (ValueError, TypeError) as exc:
-            self.logger.error(
-                f"Failed to convert template result '{template_value}' to float. "
-                f"Please check your price modifier template. Error: {exc}"
-            )
-            raise
-
-        return price
+    def _modifier_for_hour(self, hour):
+        return self._make_modifier(fake_dt=hour)
 
     def parse_hourprices(self, hourprices):
-        return {hour: self.calc_price(value=price, fake_dt=hour) for hour, price in hourprices.items()}
+        return parse_hourprices(
+            hourprices,
+            self.breakdown_data,
+            self._get_scale_factor(),
+            self.vat,
+            self._modifier_for_hour,
+        )
 
     async def _async_update_data(self) -> dict:
         """Get the latest data from Energiedirect."""
@@ -197,16 +201,13 @@ class EnergieDirectCoordinator(DataUpdateCoordinator):
         return self.data.get(self.current_bucket_time)
 
     def get_current_breakdown(self) -> dict | None:
-        breakdown = self.breakdown_data.get(self.current_bucket_time)
-        if not breakdown:
-            return None
-        scale = self._get_scale_factor()
-        result = {}
-        for key in ("market_price", "purchasing_fee", "energy_tax"):
-            value = breakdown.get(key)
-            if value is not None:
-                result[key] = round(value * scale, 5)
-        return result or None
+        return get_breakdown_for_hour(
+            self.breakdown_data,
+            self.current_bucket_time,
+            self._get_scale_factor(),
+            self.vat,
+            self._make_modifier(fake_dt=self.current_bucket_time),
+        )
 
     def get_current_market_price(self) -> float | None:
         breakdown = self.breakdown_data.get(self.current_bucket_time)
@@ -215,7 +216,12 @@ class EnergieDirectCoordinator(DataUpdateCoordinator):
         market_price = breakdown.get("market_price")
         if market_price is None:
             return None
-        return self.calc_price(market_price, fake_dt=self.current_bucket_time)
+        return calc_price(
+            market_price,
+            self._get_scale_factor(),
+            self._make_modifier(fake_dt=self.current_bucket_time),
+            self.vat,
+        )
 
     def get_next_price(self) -> float | None:
         return self.data.get(
@@ -230,30 +236,86 @@ class EnergieDirectCoordinator(DataUpdateCoordinator):
         market_price = breakdown.get("market_price")
         if market_price is None:
             return None
-        return self.calc_price(market_price, fake_dt=next_bucket)
-
-    def get_prices_today(self):
-        return self.get_timestamped_prices(self.get_data_today())
-
-    def get_prices_tomorrow(self):
-        return self.get_timestamped_prices(self.get_data_tomorrow())
-
-    def get_prices(self):
-        return self.get_timestamped_prices(
-            {hour: price for hour, price in self.data.items() if hour >= self.today}
+        return calc_price(
+            market_price,
+            self._get_scale_factor(),
+            self._make_modifier(fake_dt=next_bucket),
+            self.vat,
         )
 
-    def get_timestamped_prices(self, hourprices):
-        result = []
-        for hour, price in hourprices.items():
-            entry = {"time": str(hour), "price": price}
-            breakdown = self.breakdown_data.get(hour)
-            if breakdown:
-                entry["market_price"] = breakdown.get("market_price")
-                entry["purchasing_fee"] = breakdown.get("purchasing_fee")
-                entry["energy_tax"] = breakdown.get("energy_tax")
-            result.append(entry)
-        return result
+    def get_prices_today(self):
+        return get_timestamped_prices(
+            self.get_data_today(),
+            self.breakdown_data,
+            self._get_scale_factor(),
+            self.vat,
+            self._modifier_for_hour,
+        )
+
+    def get_prices_tomorrow(self):
+        return get_timestamped_prices(
+            self.get_data_tomorrow(),
+            self.breakdown_data,
+            self._get_scale_factor(),
+            self.vat,
+            self._modifier_for_hour,
+        )
+
+    def get_prices(self):
+        return get_timestamped_prices(
+            {hour: price for hour, price in self.data.items() if hour >= self.today},
+            self.breakdown_data,
+            self._get_scale_factor(),
+            self.vat,
+            self._modifier_for_hour,
+        )
+
+    @property
+    def _filtered_prices(self) -> dict:
+        if self.calculation_mode == CALCULATION_MODE["rotation"]:
+            return {
+                ts: price
+                for ts, price in self.data.items()
+                if self.today <= ts < self.today + timedelta(days=1)
+            }
+        elif self.calculation_mode == CALCULATION_MODE["sliding"]:
+            return {ts: price for ts, price in self.data.items() if ts >= self.current_bucket_time}
+        elif (
+                self.calculation_mode == CALCULATION_MODE["publish"] and len(self.data) > 48
+        ):
+            return {ts: price for ts, price in self.data.items() if ts >= self.today}
+        elif self.calculation_mode == CALCULATION_MODE["publish"]:
+            return {
+                ts: price
+                for ts, price in self.data.items()
+                if ts >= self.today - timedelta(days=1)
+            }
+
+        self.logger.error("Unknown calculation mode, returning empty filtered prices")
+        return {}
+
+    def get_max_price(self):
+        return get_max_price(self._filtered_prices)
+
+    def get_min_price(self):
+        return get_min_price(self._filtered_prices)
+
+    def get_max_time(self):
+        return get_max_time(self._filtered_prices)
+
+    def get_min_time(self):
+        return get_min_time(self._filtered_prices)
+
+    def get_avg_price(self):
+        return get_avg_price(self._filtered_prices)
+
+    def get_percentage_of_max(self):
+        return get_percentage_of_max(self.get_current_price(), self.get_max_price())
+
+    def get_percentage_of_range(self):
+        return get_percentage_of_range(
+            self.get_current_price(), self.get_min_price(), self.get_max_price()
+        )
 
     async def sync_calculator(self):
         now = dt.now()
@@ -286,78 +348,6 @@ class EnergieDirectCoordinator(DataUpdateCoordinator):
                     }
 
             self.calculator_last_sync = bucket
-
-    @property
-    def _filtered_prices(self) -> dict:
-        if self.calculation_mode == CALCULATION_MODE["rotation"]:
-            return {
-                ts: price
-                for ts, price in self.data.items()
-                if self.today <= ts < self.today + timedelta(days=1)
-            }
-        elif self.calculation_mode == CALCULATION_MODE["sliding"]:
-            return {ts: price for ts, price in self.data.items() if ts >= self.current_bucket_time}
-        elif (
-                self.calculation_mode == CALCULATION_MODE["publish"] and len(self.data) > 48
-        ):
-            return {ts: price for ts, price in self.data.items() if ts >= self.today}
-        elif self.calculation_mode == CALCULATION_MODE["publish"]:
-            return {
-                ts: price
-                for ts, price in self.data.items()
-                if ts >= self.today - timedelta(days=1)
-            }
-
-        self.logger.error("Unknown calculation mode, returning empty filtered prices")
-        return {}
-
-    def get_max_price(self):
-        prices = self._filtered_prices
-        if not prices:
-            return None
-        return max(prices.values())
-
-    def get_min_price(self):
-        prices = self._filtered_prices
-        if not prices:
-            return None
-        return min(prices.values())
-
-    def get_max_time(self):
-        prices = self._filtered_prices
-        if not prices:
-            return None
-        return max(prices, key=prices.get)
-
-    def get_min_time(self):
-        prices = self._filtered_prices
-        if not prices:
-            return None
-        return min(prices, key=prices.get)
-
-    def get_avg_price(self):
-        prices = self._filtered_prices
-        if not prices:
-            return None
-        return round(sum(prices.values()) / len(prices.values()), 5)
-
-    def get_percentage_of_max(self):
-        current_price = self.get_current_price()
-        max_price = self.get_max_price()
-        if current_price is None or max_price is None or max_price == 0:
-            return None
-        return round(current_price / max_price * 100, 1)
-
-    def get_percentage_of_range(self):
-        current_price = self.get_current_price()
-        min_price = self.get_min_price()
-        max_price = self.get_max_price()
-        if current_price is None or min_price is None or max_price is None:
-            return None
-        spread = max_price - min_price
-        if spread == 0:
-            return 100.0
-        return round((current_price - min_price) / spread * 100, 1)
 
     async def get_energy_prices(self, start_date, end_date):
         if (

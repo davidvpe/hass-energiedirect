@@ -1,4 +1,4 @@
-"""Mock homeassistant modules so tests run without installing HA."""
+"""Mock Home Assistant modules so the package can be imported without HA installed."""
 
 import sys
 from unittest.mock import MagicMock

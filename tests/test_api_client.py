@@ -205,6 +205,54 @@ class TestParseResponse:
         dt = AMSTERDAM_TZ.localize(datetime(2026, 2, 26, 0, 0, 0))
         assert result["electricity"][dt] == pytest.approx(0.25597)
 
+    def test_groups_breakdown_parsed(self):
+        data = {
+            "prices": [{
+                "date": "2026-02-25",
+                "electricity": {
+                    "tariffs": [{
+                        "startDateTime": "2026-02-25T00:00:00",
+                        "totalAmount": 0.23335,
+                        "groups": [
+                            {"type": "MARKET_PRICE", "amount": 0.05},
+                            {"type": "PURCHASING_FEE", "amount": 0.10},
+                            {"type": "TAX", "amount": 0.08},
+                        ],
+                    }]
+                },
+                "gas": {"tariffs": []},
+            }]
+        }
+        result = self.client._parse_response(data)
+        dt = AMSTERDAM_TZ.localize(datetime(2026, 2, 25, 0, 0, 0))
+        breakdown = result["electricity_breakdown"][dt]
+        assert breakdown["market_price"] == pytest.approx(0.05)
+        assert breakdown["purchasing_fee"] == pytest.approx(0.10)
+        assert breakdown["energy_tax"] == pytest.approx(0.08)
+
+    def test_groups_with_unknown_type_ignored(self):
+        data = {
+            "prices": [{
+                "date": "2026-02-25",
+                "electricity": {
+                    "tariffs": [{
+                        "startDateTime": "2026-02-25T00:00:00",
+                        "totalAmount": 0.23335,
+                        "groups": [
+                            {"type": "UNKNOWN_TYPE", "amount": 0.99},
+                            {"type": "MARKET_PRICE", "amount": 0.05},
+                        ],
+                    }]
+                },
+                "gas": {"tariffs": []},
+            }]
+        }
+        result = self.client._parse_response(data)
+        dt = AMSTERDAM_TZ.localize(datetime(2026, 2, 25, 0, 0, 0))
+        breakdown = result["electricity_breakdown"][dt]
+        assert "market_price" in breakdown
+        assert len(breakdown) == 1
+
 
 @pytest.mark.asyncio
 class TestFetchPrices:
@@ -251,3 +299,20 @@ class TestFetchPrices:
         with patch("aiohttp.ClientSession", return_value=self._make_session_mock(get_cm)):
             with pytest.raises(EnergieDirectException):
                 await client.fetch_prices()
+
+    async def test_fetch_prices_returns_parsed_data_on_success(self):
+        client = EnergieDirectClient()
+
+        mock_response = MagicMock()
+        mock_response.json = AsyncMock(return_value=SAMPLE_RESPONSE)
+
+        get_cm = MagicMock()
+        get_cm.__aenter__ = AsyncMock(return_value=mock_response)
+        get_cm.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("aiohttp.ClientSession", return_value=self._make_session_mock(get_cm)):
+            result = await client.fetch_prices()
+
+        assert "electricity" in result
+        assert "gas" in result
+        assert len(result["electricity"]) == 3
